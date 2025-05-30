@@ -16,7 +16,8 @@ interface Operation {
   amount: number;
   status: string;
   created_at: string;
-  profiles: {
+  user_id: string;
+  profiles?: {
     name: string;
     pppoker_id: string;
   };
@@ -34,24 +35,45 @@ const Admin = () => {
 
   const fetchOperations = async () => {
     try {
-      const { data, error } = await supabase
-        .from('operations' as any)
-        .select(`
-          id,
-          type,
-          amount,
-          status,
-          created_at,
-          profiles (
-            name,
-            pppoker_id
-          )
-        `)
+      console.log('Fetching operations...');
+      
+      // First get operations
+      const { data: operationsData, error: operationsError } = await supabase
+        .from('operations')
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setOperations(data || []);
+      if (operationsError) {
+        console.error('Operations error:', operationsError);
+        throw operationsError;
+      }
+
+      console.log('Operations data:', operationsData);
+
+      // Then get profiles for each operation
+      const operationsWithProfiles: Operation[] = [];
+      
+      for (const operation of operationsData || []) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('name, pppoker_id')
+          .eq('id', operation.user_id)
+          .single();
+
+        if (profileError) {
+          console.error('Profile error for user', operation.user_id, ':', profileError);
+        }
+
+        operationsWithProfiles.push({
+          ...operation,
+          profiles: profileData || { name: 'Unknown', pppoker_id: 'Unknown' }
+        });
+      }
+
+      console.log('Operations with profiles:', operationsWithProfiles);
+      setOperations(operationsWithProfiles);
     } catch (error: any) {
+      console.error('Fetch error:', error);
       toast({
         title: "Erro",
         description: error.message,
@@ -65,11 +87,11 @@ const Admin = () => {
   const confirmOperation = async (id: string) => {
     try {
       const { error } = await supabase
-        .from('operations' as any)
+        .from('operations')
         .update({ 
           status: 'confirmed',
           confirmed_at: new Date().toISOString()
-        } as any)
+        })
         .eq('id', id);
 
       if (error) throw error;
@@ -97,8 +119,8 @@ const Admin = () => {
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-4">
           <div className="space-y-1">
-            <h3 className="font-semibold text-lg">{operation.profiles.name}</h3>
-            <p className="text-sm text-gray-600">PPPoker ID: {operation.profiles.pppoker_id}</p>
+            <h3 className="font-semibold text-lg">{operation.profiles?.name || 'Unknown'}</h3>
+            <p className="text-sm text-gray-600">PPPoker ID: {operation.profiles?.pppoker_id || 'Unknown'}</p>
             <p className="text-sm text-gray-500">Data: {new Date(operation.created_at).toLocaleDateString('pt-BR')}</p>
           </div>
           <div className="text-right">
@@ -118,7 +140,7 @@ const Admin = () => {
           <div className="flex items-center space-x-2 pt-2 border-t">
             <Checkbox 
               id={`confirm-${operation.id}`}
-              onChange={(checked) => {
+              onCheckedChange={(checked) => {
                 if (checked) {
                   onConfirm(operation.id);
                 }
