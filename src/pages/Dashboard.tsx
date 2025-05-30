@@ -32,12 +32,12 @@ const Dashboard = () => {
     try {
       // Create withdrawal operation
       const { error } = await supabase
-        .from('operations')
+        .from('operations' as any)
         .insert({
           user_id: user?.id,
           type: 'withdrawal',
           amount: parseFloat(withdrawAmount)
-        });
+        } as any);
 
       if (error) throw error;
 
@@ -74,12 +74,12 @@ const Dashboard = () => {
     try {
       // Create deposit operation
       const { error } = await supabase
-        .from('operations')
+        .from('operations' as any)
         .insert({
           user_id: user?.id,
           type: 'deposit',
           amount: parseFloat(depositAmount)
-        });
+        } as any);
 
       if (error) throw error;
 

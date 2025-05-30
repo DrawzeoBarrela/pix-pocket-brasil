@@ -47,7 +47,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setTimeout(async () => {
             try {
               const { data } = await supabase
-                .from('user_roles')
+                .from('user_roles' as any)
                 .select('role')
                 .eq('user_id', session.user.id)
                 .eq('role', 'admin')

@@ -35,7 +35,7 @@ const Admin = () => {
   const fetchOperations = async () => {
     try {
       const { data, error } = await supabase
-        .from('operations')
+        .from('operations' as any)
         .select(`
           id,
           type,
@@ -65,11 +65,11 @@ const Admin = () => {
   const confirmOperation = async (id: string) => {
     try {
       const { error } = await supabase
-        .from('operations')
+        .from('operations' as any)
         .update({ 
           status: 'confirmed',
           confirmed_at: new Date().toISOString()
-        })
+        } as any)
         .eq('id', id);
 
       if (error) throw error;

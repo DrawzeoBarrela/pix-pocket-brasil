@@ -9,16 +9,109 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      operations: {
+        Row: {
+          amount: number
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          id: string
+          mercado_pago_payment_id: string | null
+          notes: string | null
+          pix_qr_code: string | null
+          status: Database["public"]["Enums"]["operation_status"]
+          type: Database["public"]["Enums"]["operation_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          id?: string
+          mercado_pago_payment_id?: string | null
+          notes?: string | null
+          pix_qr_code?: string | null
+          status?: Database["public"]["Enums"]["operation_status"]
+          type: Database["public"]["Enums"]["operation_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          id?: string
+          mercado_pago_payment_id?: string | null
+          notes?: string | null
+          pix_qr_code?: string | null
+          status?: Database["public"]["Enums"]["operation_status"]
+          type?: Database["public"]["Enums"]["operation_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          cpf: string
+          created_at: string
+          id: string
+          name: string
+          pppoker_id: string
+          updated_at: string
+        }
+        Insert: {
+          cpf: string
+          created_at?: string
+          id: string
+          name: string
+          pppoker_id: string
+          updated_at?: string
+        }
+        Update: {
+          cpf?: string
+          created_at?: string
+          id?: string
+          name?: string
+          pppoker_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: { _user_id: string; _role: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      operation_status: "pending" | "confirmed" | "cancelled"
+      operation_type: "deposit" | "withdrawal"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +226,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      operation_status: ["pending", "confirmed", "cancelled"],
+      operation_type: ["deposit", "withdrawal"],
+    },
   },
 } as const
