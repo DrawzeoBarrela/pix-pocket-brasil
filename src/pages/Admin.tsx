@@ -1,124 +1,131 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { LogOut, ArrowUpCircle, ArrowDownCircle, Check } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+
+interface Operation {
+  id: string;
+  type: 'deposit' | 'withdrawal';
+  amount: number;
+  status: string;
+  created_at: string;
+  profiles: {
+    name: string;
+    pppoker_id: string;
+  };
+}
 
 const Admin = () => {
-  const navigate = useNavigate();
+  const { signOut } = useAuth();
   const { toast } = useToast();
+  const [operations, setOperations] = useState<Operation[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data for demonstration
-  const [withdrawalRequests, setWithdrawalRequests] = useState([
-    {
-      id: 1,
-      userName: 'João Silva',
-      ppokerId: 'PP123456',
-      amount: 150.00,
-      date: '2024-01-15',
-      status: 'pending'
-    },
-    {
-      id: 2,
-      userName: 'Maria Santos',
-      ppokerId: 'PP789012',
-      amount: 300.00,
-      date: '2024-01-15',
-      status: 'pending'
+  useEffect(() => {
+    fetchOperations();
+  }, []);
+
+  const fetchOperations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('operations')
+        .select(`
+          id,
+          type,
+          amount,
+          status,
+          created_at,
+          profiles (
+            name,
+            pppoker_id
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setOperations(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
 
-  const [depositRequests, setDepositRequests] = useState([
-    {
-      id: 1,
-      userName: 'Carlos Oliveira',
-      ppokerId: 'PP345678',
-      amount: 200.00,
-      date: '2024-01-15',
-      status: 'pending'
-    },
-    {
-      id: 2,
-      userName: 'Ana Costa',
-      ppokerId: 'PP901234',
-      amount: 500.00,
-      date: '2024-01-15',
-      status: 'pending'
+  const confirmOperation = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('operations')
+        .update({ 
+          status: 'confirmed',
+          confirmed_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await fetchOperations();
+      
+      toast({
+        title: "Operação confirmada!",
+        description: "A operação foi confirmada com sucesso.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive"
+      });
     }
-  ]);
-
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    navigate('/login');
   };
 
-  const confirmWithdrawal = (id: number) => {
-    setWithdrawalRequests(prev => 
-      prev.map(request => 
-        request.id === id 
-          ? { ...request, status: 'confirmed' }
-          : request
-      )
-    );
-    toast({
-      title: "Saque confirmado!",
-      description: "A operação foi confirmada com sucesso.",
-    });
-  };
+  const withdrawalOperations = operations.filter(op => op.type === 'withdrawal');
+  const depositOperations = operations.filter(op => op.type === 'deposit');
 
-  const confirmDeposit = (id: number) => {
-    setDepositRequests(prev => 
-      prev.map(request => 
-        request.id === id 
-          ? { ...request, status: 'confirmed' }
-          : request
-      )
-    );
-    toast({
-      title: "Depósito confirmado!",
-      description: "A operação foi confirmada com sucesso.",
-    });
-  };
-
-  const RequestCard = ({ request, type, onConfirm }: any) => (
+  const RequestCard = ({ operation, onConfirm }: { operation: Operation; onConfirm: (id: string) => void }) => (
     <Card className="shadow-md">
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-4">
           <div className="space-y-1">
-            <h3 className="font-semibold text-lg">{request.userName}</h3>
-            <p className="text-sm text-gray-600">PPPoker ID: {request.ppokerId}</p>
-            <p className="text-sm text-gray-500">Data: {new Date(request.date).toLocaleDateString('pt-BR')}</p>
+            <h3 className="font-semibold text-lg">{operation.profiles.name}</h3>
+            <p className="text-sm text-gray-600">PPPoker ID: {operation.profiles.pppoker_id}</p>
+            <p className="text-sm text-gray-500">Data: {new Date(operation.created_at).toLocaleDateString('pt-BR')}</p>
           </div>
           <div className="text-right">
             <p className="text-2xl font-bold text-blue-600">
-              R$ {request.amount.toFixed(2)}
+              R$ {operation.amount.toFixed(2)}
             </p>
             <Badge 
-              variant={request.status === 'confirmed' ? 'default' : 'secondary'}
-              className={request.status === 'confirmed' ? 'bg-green-600' : ''}
+              variant={operation.status === 'confirmed' ? 'default' : 'secondary'}
+              className={operation.status === 'confirmed' ? 'bg-green-600' : ''}
             >
-              {request.status === 'confirmed' ? 'Confirmado' : 'Pendente'}
+              {operation.status === 'confirmed' ? 'Confirmado' : 'Pendente'}
             </Badge>
           </div>
         </div>
         
-        {request.status === 'pending' && (
+        {operation.status === 'pending' && (
           <div className="flex items-center space-x-2 pt-2 border-t">
             <Checkbox 
-              id={`confirm-${type}-${request.id}`}
+              id={`confirm-${operation.id}`}
               onChange={(checked) => {
                 if (checked) {
-                  onConfirm(request.id);
+                  onConfirm(operation.id);
                 }
               }}
             />
             <label 
-              htmlFor={`confirm-${type}-${request.id}`} 
+              htmlFor={`confirm-${operation.id}`} 
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
             >
               Confirmar operação
@@ -126,7 +133,7 @@ const Admin = () => {
           </div>
         )}
 
-        {request.status === 'confirmed' && (
+        {operation.status === 'confirmed' && (
           <div className="flex items-center space-x-2 pt-2 border-t text-green-600">
             <Check size={16} />
             <span className="text-sm font-medium">Operação confirmada</span>
@@ -135,6 +142,14 @@ const Admin = () => {
       </CardContent>
     </Card>
   );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Carregando...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -146,7 +161,7 @@ const Admin = () => {
             <p className="text-gray-600">Gerenciar solicitações de saque e depósito</p>
           </div>
           <Button 
-            onClick={handleLogout} 
+            onClick={signOut} 
             variant="outline"
             className="flex items-center gap-2"
           >
@@ -179,17 +194,16 @@ const Admin = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {withdrawalRequests.length === 0 ? (
+                    {withdrawalOperations.length === 0 ? (
                       <p className="text-center text-gray-500 py-8">
                         Nenhuma solicitação de saque encontrada.
                       </p>
                     ) : (
-                      withdrawalRequests.map((request) => (
+                      withdrawalOperations.map((operation) => (
                         <RequestCard
-                          key={request.id}
-                          request={request}
-                          type="withdrawal"
-                          onConfirm={confirmWithdrawal}
+                          key={operation.id}
+                          operation={operation}
+                          onConfirm={confirmOperation}
                         />
                       ))
                     )}
@@ -208,17 +222,16 @@ const Admin = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {depositRequests.length === 0 ? (
+                    {depositOperations.length === 0 ? (
                       <p className="text-center text-gray-500 py-8">
                         Nenhuma solicitação de depósito encontrada.
                       </p>
                     ) : (
-                      depositRequests.map((request) => (
+                      depositOperations.map((operation) => (
                         <RequestCard
-                          key={request.id}
-                          request={request}
-                          type="deposit"
-                          onConfirm={confirmDeposit}
+                          key={operation.id}
+                          operation={operation}
+                          onConfirm={confirmOperation}
                         />
                       ))
                     )}

@@ -6,24 +6,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowUpCircle, ArrowDownCircle, LogOut, QrCode } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { supabase } from '@/integrations/supabase/client';
 
 const Dashboard = () => {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [depositAmount, setDepositAmount] = useState('');
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [showQrCode, setShowQrCode] = useState(false);
-  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const { toast } = useToast();
-
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    navigate('/login');
-  };
 
   const handleWithdraw = async () => {
     if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
@@ -35,20 +29,39 @@ const Dashboard = () => {
       return;
     }
 
-    // Simulate Mercado Pago QR Code generation
-    const mockQrCode = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=PIX_CODE_${Math.random().toString(36).substr(2, 9)}`;
-    setQrCodeUrl(mockQrCode);
-    setShowQrCode(true);
+    try {
+      // Create withdrawal operation
+      const { error } = await supabase
+        .from('operations')
+        .insert({
+          user_id: user?.id,
+          type: 'withdrawal',
+          amount: parseFloat(withdrawAmount)
+        });
 
-    toast({
-      title: "QR Code PIX gerado!",
-      description: `Solicitação de saque de R$ ${withdrawAmount} criada.`,
-    });
+      if (error) throw error;
 
-    setWithdrawAmount('');
+      // Simulate Mercado Pago QR Code generation
+      const mockQrCode = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=PIX_CODE_${Math.random().toString(36).substr(2, 9)}`;
+      setQrCodeUrl(mockQrCode);
+      setShowQrCode(true);
+
+      toast({
+        title: "QR Code PIX gerado!",
+        description: `Solicitação de saque de R$ ${withdrawAmount} criada.`,
+      });
+
+      setWithdrawAmount('');
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleDeposit = () => {
+  const handleDeposit = async () => {
     if (!depositAmount || parseFloat(depositAmount) <= 0) {
       toast({
         title: "Erro",
@@ -58,12 +71,31 @@ const Dashboard = () => {
       return;
     }
 
-    toast({
-      title: "Solicitação enviada!",
-      description: `Solicitação de depósito de R$ ${depositAmount} criada.`,
-    });
+    try {
+      // Create deposit operation
+      const { error } = await supabase
+        .from('operations')
+        .insert({
+          user_id: user?.id,
+          type: 'deposit',
+          amount: parseFloat(depositAmount)
+        });
 
-    setDepositAmount('');
+      if (error) throw error;
+
+      toast({
+        title: "Solicitação enviada!",
+        description: `Solicitação de depósito de R$ ${depositAmount} criada.`,
+      });
+
+      setDepositAmount('');
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -73,10 +105,10 @@ const Dashboard = () => {
         <div className="flex justify-between items-center mb-8 bg-white rounded-lg shadow-md p-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-            <p className="text-gray-600">Bem-vindo, {user.email}</p>
+            <p className="text-gray-600">Bem-vindo, {user?.email}</p>
           </div>
           <Button 
-            onClick={handleLogout} 
+            onClick={signOut} 
             variant="outline"
             className="flex items-center gap-2"
           >
