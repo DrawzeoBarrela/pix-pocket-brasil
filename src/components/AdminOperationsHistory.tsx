@@ -3,53 +3,76 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { ArrowUpCircle, ArrowDownCircle, History } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-interface Operation {
+interface AdminOperation {
   id: string;
   type: 'deposit' | 'withdrawal';
   amount: number;
   status: string;
   created_at: string;
+  user_id: string;
+  profiles?: {
+    name: string;
+    pppoker_id: string;
+  };
 }
 
-const OperationsHistory = () => {
-  const { user } = useAuth();
+const AdminOperationsHistory = () => {
   const { toast } = useToast();
-  const [operations, setOperations] = useState<Operation[]>([]);
+  const [operations, setOperations] = useState<AdminOperation[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      fetchOperations();
-    }
-  }, [user]);
+    fetchOperations();
+  }, []);
 
   const fetchOperations = async () => {
     try {
-      console.log('Fetching user operations for:', user?.id);
+      console.log('Fetching all operations for admin...');
       
-      const { data, error } = await supabase
+      // First get operations
+      const { data: operationsData, error: operationsError } = await supabase
         .from('operations')
         .select('*')
-        .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Operations error:', error);
-        throw error;
+      if (operationsError) {
+        console.error('Operations error:', operationsError);
+        throw operationsError;
       }
 
-      console.log('User operations data:', data);
-      setOperations(data || []);
+      console.log('Admin operations data:', operationsData);
+
+      // Then get profiles for each operation
+      const operationsWithProfiles: AdminOperation[] = [];
+      
+      for (const operation of operationsData || []) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('name, pppoker_id')
+          .eq('id', operation.user_id)
+          .single();
+
+        if (profileError) {
+          console.error('Profile error for user', operation.user_id, ':', profileError);
+        }
+
+        operationsWithProfiles.push({
+          ...operation,
+          profiles: profileData || { name: 'Usuário não encontrado', pppoker_id: 'N/A' }
+        });
+      }
+
+      console.log('Admin operations with profiles:', operationsWithProfiles);
+      setOperations(operationsWithProfiles);
     } catch (error: any) {
-      console.error('Fetch error:', error);
+      console.error('Admin fetch error:', error);
       toast({
         title: "Erro",
-        description: "Erro ao carregar histórico de operações",
+        description: "Erro ao carregar histórico completo",
         variant: "destructive"
       });
     } finally {
@@ -61,7 +84,10 @@ const OperationsHistory = () => {
     return (
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle>Histórico de Operações</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <History size={24} />
+            Histórico Completo de Operações
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8 text-gray-500">
@@ -75,17 +101,22 @@ const OperationsHistory = () => {
   return (
     <Card className="shadow-lg">
       <CardHeader>
-        <CardTitle>Histórico de Operações</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <History size={24} />
+          Histórico Completo de Operações
+        </CardTitle>
       </CardHeader>
       <CardContent>
         {operations.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
-            <p>Nenhuma operação realizada ainda.</p>
+            <p>Nenhuma operação encontrada.</p>
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Usuário</TableHead>
+                <TableHead>PPPoker ID</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Valor</TableHead>
                 <TableHead>Status</TableHead>
@@ -95,6 +126,12 @@ const OperationsHistory = () => {
             <TableBody>
               {operations.map((operation) => (
                 <TableRow key={operation.id}>
+                  <TableCell className="font-medium">
+                    {operation.profiles?.name || 'Usuário não encontrado'}
+                  </TableCell>
+                  <TableCell>
+                    {operation.profiles?.pppoker_id || 'N/A'}
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       {operation.type === 'deposit' ? (
@@ -132,4 +169,4 @@ const OperationsHistory = () => {
   );
 };
 
-export default OperationsHistory;
+export default AdminOperationsHistory;
