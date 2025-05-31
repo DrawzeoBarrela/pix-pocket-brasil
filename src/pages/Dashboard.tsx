@@ -1,22 +1,22 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowUpCircle, ArrowDownCircle, LogOut, QrCode } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, LogOut, QrCode, Settings } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
+import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [depositAmount, setDepositAmount] = useState('');
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [showQrCode, setShowQrCode] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
   const { toast } = useToast();
 
   const handleWithdraw = async () => {
@@ -107,14 +107,24 @@ const Dashboard = () => {
             <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
             <p className="text-gray-600">Bem-vindo, {user?.email}</p>
           </div>
-          <Button 
-            onClick={signOut} 
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <LogOut size={16} />
-            Sair
-          </Button>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Link to="/admin">
+                <Button variant="outline" className="flex items-center gap-2">
+                  <Settings size={16} />
+                  Painel Admin
+                </Button>
+              </Link>
+            )}
+            <Button 
+              onClick={signOut} 
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <LogOut size={16} />
+              Sair
+            </Button>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -127,37 +137,7 @@ const Dashboard = () => {
 
             <TabsContent value="operations">
               <div className="grid md:grid-cols-2 gap-6">
-                {/* Withdraw Card */}
-                <Card className="shadow-lg">
-                  <CardHeader className="text-center">
-                    <CardTitle className="flex items-center justify-center gap-2 text-red-600">
-                      <ArrowUpCircle size={24} />
-                      Saque
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="withdraw">Valor do Saque (R$)</Label>
-                      <Input
-                        id="withdraw"
-                        type="number"
-                        placeholder="0,00"
-                        value={withdrawAmount}
-                        onChange={(e) => setWithdrawAmount(e.target.value)}
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
-                    <Button 
-                      onClick={handleWithdraw}
-                      className="w-full bg-red-600 hover:bg-red-700"
-                    >
-                      Solicitar Saque
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                {/* Deposit Card */}
+                {/* Deposit Card - Now on the left */}
                 <Card className="shadow-lg">
                   <CardHeader className="text-center">
                     <CardTitle className="flex items-center justify-center gap-2 text-green-600">
@@ -183,6 +163,36 @@ const Dashboard = () => {
                       className="w-full bg-green-600 hover:bg-green-700"
                     >
                       Solicitar Depósito
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Withdraw Card - Now on the right */}
+                <Card className="shadow-lg">
+                  <CardHeader className="text-center">
+                    <CardTitle className="flex items-center justify-center gap-2 text-red-600">
+                      <ArrowUpCircle size={24} />
+                      Saque
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="withdraw">Valor do Saque (R$)</Label>
+                      <Input
+                        id="withdraw"
+                        type="number"
+                        placeholder="0,00"
+                        value={withdrawAmount}
+                        onChange={(e) => setWithdrawAmount(e.target.value)}
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    <Button 
+                      onClick={handleWithdraw}
+                      className="w-full bg-red-600 hover:bg-red-700"
+                    >
+                      Solicitar Saque
                     </Button>
                   </CardContent>
                 </Card>
