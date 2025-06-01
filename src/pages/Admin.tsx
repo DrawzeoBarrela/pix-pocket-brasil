@@ -9,6 +9,7 @@ import { LogOut, ArrowUpCircle, ArrowDownCircle, Check, History } from 'lucide-r
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { DarkModeToggle } from '@/components/DarkModeToggle';
 import AdminOperationsHistory from '@/components/AdminOperationsHistory';
 
 interface Operation {
@@ -186,22 +187,25 @@ const Admin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <div className="container mx-auto p-4">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8 bg-white rounded-lg shadow-md p-4">
+        <div className="flex justify-between items-center mb-8 bg-card border rounded-lg shadow-md p-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Painel Administrativo</h1>
-            <p className="text-gray-600">Gerenciar solicitações de saque e depósito</p>
+            <h1 className="text-2xl font-bold text-card-foreground">Painel Administrativo</h1>
+            <p className="text-muted-foreground">Gerenciar solicitações de saque e depósito</p>
           </div>
-          <Button 
-            onClick={signOut} 
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <LogOut size={16} />
-            Sair
-          </Button>
+          <div className="flex items-center gap-2">
+            <DarkModeToggle />
+            <Button 
+              onClick={signOut} 
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <LogOut size={16} />
+              Sair
+            </Button>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -225,7 +229,7 @@ const Admin = () => {
             <TabsContent value="withdrawals">
               <Card className="shadow-lg">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-red-600">
+                  <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
                     <ArrowUpCircle size={24} />
                     Solicitações de Saque
                   </CardTitle>
@@ -233,7 +237,7 @@ const Admin = () => {
                 <CardContent>
                   <div className="space-y-4">
                     {withdrawalOperations.length === 0 ? (
-                      <p className="text-center text-gray-500 py-8">
+                      <p className="text-center text-muted-foreground py-8">
                         Nenhuma solicitação de saque encontrada.
                       </p>
                     ) : (
@@ -253,7 +257,7 @@ const Admin = () => {
             <TabsContent value="deposits">
               <Card className="shadow-lg">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-green-600">
+                  <CardTitle className="flex items-center gap-2 text-green-600 dark:text-green-400">
                     <ArrowDownCircle size={24} />
                     Solicitações de Depósito
                   </CardTitle>
@@ -261,7 +265,7 @@ const Admin = () => {
                 <CardContent>
                   <div className="space-y-4">
                     {depositOperations.length === 0 ? (
-                      <p className="text-center text-gray-500 py-8">
+                      <p className="text-center text-muted-foreground py-8">
                         Nenhuma solicitação de depósito encontrada.
                       </p>
                     ) : (
