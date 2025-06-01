@@ -36,21 +36,10 @@ const Admin = () => {
     try {
       console.log('Fetching operations...');
       
-      // Get operations with a join to profiles
+      // First get all operations
       const { data: operationsData, error: operationsError } = await supabase
         .from('operations')
-        .select(`
-          id,
-          type,
-          amount,
-          status,
-          created_at,
-          user_id,
-          profiles!inner (
-            name,
-            pppoker_id
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (operationsError) {
@@ -58,19 +47,40 @@ const Admin = () => {
         throw operationsError;
       }
 
-      console.log('Operations data with profiles:', operationsData);
+      console.log('Operations data:', operationsData);
 
-      // Transform the data to flatten the profiles
-      const transformedOperations: Operation[] = (operationsData || []).map(operation => ({
-        id: operation.id,
-        type: operation.type,
-        amount: operation.amount,
-        status: operation.status,
-        created_at: operation.created_at,
-        user_id: operation.user_id,
-        user_name: operation.profiles?.name || 'Usuário não encontrado',
-        pppoker_id: operation.profiles?.pppoker_id || 'N/A'
-      }));
+      // Then get all profiles
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, name, pppoker_id');
+
+      if (profilesError) {
+        console.error('Profiles error:', profilesError);
+        throw profilesError;
+      }
+
+      console.log('Profiles data:', profilesData);
+
+      // Create a map of user_id to profile data for efficient lookup
+      const profilesMap = new Map();
+      profilesData?.forEach(profile => {
+        profilesMap.set(profile.id, profile);
+      });
+
+      // Transform the data by joining operations with profiles
+      const transformedOperations: Operation[] = (operationsData || []).map(operation => {
+        const profile = profilesMap.get(operation.user_id);
+        return {
+          id: operation.id,
+          type: operation.type,
+          amount: operation.amount,
+          status: operation.status,
+          created_at: operation.created_at,
+          user_id: operation.user_id,
+          user_name: profile?.name || 'Usuário não encontrado',
+          pppoker_id: profile?.pppoker_id || 'N/A'
+        };
+      });
 
       console.log('Transformed operations:', transformedOperations);
       setOperations(transformedOperations);
