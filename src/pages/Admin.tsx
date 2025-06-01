@@ -18,10 +18,8 @@ interface Operation {
   status: string;
   created_at: string;
   user_id: string;
-  profiles?: {
-    name: string;
-    pppoker_id: string;
-  };
+  user_name: string;
+  pppoker_id: string;
 }
 
 const Admin = () => {
@@ -38,10 +36,21 @@ const Admin = () => {
     try {
       console.log('Fetching operations...');
       
-      // First get operations
+      // Get operations with a join to profiles
       const { data: operationsData, error: operationsError } = await supabase
         .from('operations')
-        .select('*')
+        .select(`
+          id,
+          type,
+          amount,
+          status,
+          created_at,
+          user_id,
+          profiles!inner (
+            name,
+            pppoker_id
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (operationsError) {
@@ -49,30 +58,22 @@ const Admin = () => {
         throw operationsError;
       }
 
-      console.log('Operations data:', operationsData);
+      console.log('Operations data with profiles:', operationsData);
 
-      // Then get profiles for each operation
-      const operationsWithProfiles: Operation[] = [];
-      
-      for (const operation of operationsData || []) {
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('name, pppoker_id')
-          .eq('id', operation.user_id)
-          .single();
+      // Transform the data to flatten the profiles
+      const transformedOperations: Operation[] = (operationsData || []).map(operation => ({
+        id: operation.id,
+        type: operation.type,
+        amount: operation.amount,
+        status: operation.status,
+        created_at: operation.created_at,
+        user_id: operation.user_id,
+        user_name: operation.profiles?.name || 'Usuário não encontrado',
+        pppoker_id: operation.profiles?.pppoker_id || 'N/A'
+      }));
 
-        if (profileError) {
-          console.error('Profile error for user', operation.user_id, ':', profileError);
-        }
-
-        operationsWithProfiles.push({
-          ...operation,
-          profiles: profileData || { name: 'Unknown', pppoker_id: 'Unknown' }
-        });
-      }
-
-      console.log('Operations with profiles:', operationsWithProfiles);
-      setOperations(operationsWithProfiles);
+      console.log('Transformed operations:', transformedOperations);
+      setOperations(transformedOperations);
     } catch (error: any) {
       console.error('Fetch error:', error);
       toast({
@@ -120,8 +121,8 @@ const Admin = () => {
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-4">
           <div className="space-y-1">
-            <h3 className="font-semibold text-lg">{operation.profiles?.name || 'Unknown'}</h3>
-            <p className="text-sm text-gray-600">PPPoker ID: {operation.profiles?.pppoker_id || 'Unknown'}</p>
+            <h3 className="font-semibold text-lg">{operation.user_name}</h3>
+            <p className="text-sm text-gray-600">PPPoker ID: {operation.pppoker_id}</p>
             <p className="text-sm text-gray-500">Data: {new Date(operation.created_at).toLocaleDateString('pt-BR')}</p>
           </div>
           <div className="text-right">

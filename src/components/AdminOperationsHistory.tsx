@@ -14,10 +14,8 @@ interface AdminOperation {
   status: string;
   created_at: string;
   user_id: string;
-  profiles?: {
-    name: string;
-    pppoker_id: string;
-  };
+  user_name: string;
+  pppoker_id: string;
 }
 
 const AdminOperationsHistory = () => {
@@ -33,10 +31,21 @@ const AdminOperationsHistory = () => {
     try {
       console.log('Fetching all operations for admin...');
       
-      // First get operations
+      // Get operations with a join to profiles
       const { data: operationsData, error: operationsError } = await supabase
         .from('operations')
-        .select('*')
+        .select(`
+          id,
+          type,
+          amount,
+          status,
+          created_at,
+          user_id,
+          profiles!inner (
+            name,
+            pppoker_id
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (operationsError) {
@@ -44,30 +53,22 @@ const AdminOperationsHistory = () => {
         throw operationsError;
       }
 
-      console.log('Admin operations data:', operationsData);
+      console.log('Admin operations data with profiles:', operationsData);
 
-      // Then get profiles for each operation
-      const operationsWithProfiles: AdminOperation[] = [];
-      
-      for (const operation of operationsData || []) {
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('name, pppoker_id')
-          .eq('id', operation.user_id)
-          .single();
+      // Transform the data to flatten the profiles
+      const transformedOperations: AdminOperation[] = (operationsData || []).map(operation => ({
+        id: operation.id,
+        type: operation.type,
+        amount: operation.amount,
+        status: operation.status,
+        created_at: operation.created_at,
+        user_id: operation.user_id,
+        user_name: operation.profiles?.name || 'Usuário não encontrado',
+        pppoker_id: operation.profiles?.pppoker_id || 'N/A'
+      }));
 
-        if (profileError) {
-          console.error('Profile error for user', operation.user_id, ':', profileError);
-        }
-
-        operationsWithProfiles.push({
-          ...operation,
-          profiles: profileData || { name: 'Usuário não encontrado', pppoker_id: 'N/A' }
-        });
-      }
-
-      console.log('Admin operations with profiles:', operationsWithProfiles);
-      setOperations(operationsWithProfiles);
+      console.log('Transformed operations:', transformedOperations);
+      setOperations(transformedOperations);
     } catch (error: any) {
       console.error('Admin fetch error:', error);
       toast({
@@ -127,10 +128,10 @@ const AdminOperationsHistory = () => {
               {operations.map((operation) => (
                 <TableRow key={operation.id}>
                   <TableCell className="font-medium">
-                    {operation.profiles?.name || 'Usuário não encontrado'}
+                    {operation.user_name}
                   </TableCell>
                   <TableCell>
-                    {operation.profiles?.pppoker_id || 'N/A'}
+                    {operation.pppoker_id}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
