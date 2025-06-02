@@ -34,7 +34,7 @@ const OperationsHistory = () => {
       
       const { data, error } = await supabase
         .from('operations')
-        .select('*')
+        .select('id, type, amount, status, created_at')
         .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
@@ -49,7 +49,7 @@ const OperationsHistory = () => {
       console.error('Fetch error:', error);
       toast({
         title: "Erro",
-        description: "Erro ao carregar histórico de operações",
+        description: "Erro ao carregar histórico de operações. Tente novamente.",
         variant: "destructive"
       });
     } finally {

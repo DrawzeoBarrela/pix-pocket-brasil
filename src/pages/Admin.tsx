@@ -37,10 +37,10 @@ const Admin = () => {
     try {
       console.log('Fetching operations...');
       
-      // First get all operations
+      // Get all operations (admin policy will allow this)
       const { data: operationsData, error: operationsError } = await supabase
         .from('operations')
-        .select('*')
+        .select('id, type, amount, status, created_at, user_id')
         .order('created_at', { ascending: false });
 
       if (operationsError) {
@@ -50,7 +50,7 @@ const Admin = () => {
 
       console.log('Operations data:', operationsData);
 
-      // Then get all profiles
+      // Get all profiles (admin policy will allow this)
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, name, pppoker_id');
@@ -89,7 +89,7 @@ const Admin = () => {
       console.error('Fetch error:', error);
       toast({
         title: "Erro",
-        description: error.message,
+        description: "Erro ao carregar dados. Verifique suas permissões de admin.",
         variant: "destructive"
       });
     } finally {
@@ -118,7 +118,7 @@ const Admin = () => {
     } catch (error: any) {
       toast({
         title: "Erro",
-        description: error.message,
+        description: "Erro ao confirmar operação. Verifique suas permissões.",
         variant: "destructive"
       });
     }

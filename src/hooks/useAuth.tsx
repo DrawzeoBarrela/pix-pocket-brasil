@@ -43,17 +43,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Check if user is admin - fixed query
+          // Check if user is admin using the new has_role function
           setTimeout(async () => {
             try {
               const { data, error } = await supabase
-                .from('user_roles')
-                .select('role')
-                .eq('user_id', session.user.id)
-                .eq('role', 'admin');
+                .rpc('has_role', { 
+                  _user_id: session.user.id, 
+                  _role: 'admin' 
+                });
               
               console.log('Admin check result:', { data, error, userId: session.user.id });
-              setIsAdmin(data && data.length > 0);
+              setIsAdmin(data === true);
             } catch (error) {
               console.error('Error checking admin role:', error);
               setIsAdmin(false);

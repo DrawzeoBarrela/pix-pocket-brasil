@@ -31,10 +31,10 @@ const AdminOperationsHistory = () => {
     try {
       console.log('Fetching all operations for admin...');
       
-      // First get all operations
+      // Get all operations (admin policy will allow this)
       const { data: operationsData, error: operationsError } = await supabase
         .from('operations')
-        .select('*')
+        .select('id, type, amount, status, created_at, user_id')
         .order('created_at', { ascending: false });
 
       if (operationsError) {
@@ -44,7 +44,7 @@ const AdminOperationsHistory = () => {
 
       console.log('Operations data:', operationsData);
 
-      // Then get all profiles
+      // Get all profiles (admin policy will allow this)
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, name, pppoker_id');
@@ -83,7 +83,7 @@ const AdminOperationsHistory = () => {
       console.error('Admin fetch error:', error);
       toast({
         title: "Erro",
-        description: "Erro ao carregar histórico completo",
+        description: "Erro ao carregar histórico completo. Verifique suas permissões.",
         variant: "destructive"
       });
     } finally {
