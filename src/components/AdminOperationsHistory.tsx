@@ -56,15 +56,35 @@ const AdminOperationsHistory = () => {
 
       console.log('Profiles data:', profilesData);
 
+      // Get auth users data as fallback
+      const { data: authUsersData, error: authUsersError } = await supabase.auth.admin.listUsers();
+      
+      if (authUsersError) {
+        console.error('Auth users error:', authUsersError);
+      }
+
+      console.log('Auth users data:', authUsersData?.users);
+
       // Create a map of user_id to profile data for efficient lookup
       const profilesMap = new Map();
       profilesData?.forEach(profile => {
         profilesMap.set(profile.id, profile);
       });
 
-      // Transform the data by joining operations with profiles
+      // Create a map of auth users data as fallback
+      const authUsersMap = new Map();
+      authUsersData?.users?.forEach(user => {
+        authUsersMap.set(user.id, {
+          name: user.user_metadata?.name || user.email,
+          pppoker_id: user.user_metadata?.pppoker_id || user.user_metadata?.ppokerId || 'N/A'
+        });
+      });
+
+      // Transform the data by joining operations with profiles and fallback to auth users
       const transformedOperations: AdminOperation[] = (operationsData || []).map(operation => {
         const profile = profilesMap.get(operation.user_id);
+        const authUser = authUsersMap.get(operation.user_id);
+        
         return {
           id: operation.id,
           type: operation.type,
@@ -72,8 +92,8 @@ const AdminOperationsHistory = () => {
           status: operation.status,
           created_at: operation.created_at,
           user_id: operation.user_id,
-          user_name: profile?.name || 'Usuário não encontrado',
-          pppoker_id: profile?.pppoker_id || 'N/A'
+          user_name: profile?.name || authUser?.name || 'Usuário não encontrado',
+          pppoker_id: profile?.pppoker_id || authUser?.pppoker_id || 'N/A'
         };
       });
 
