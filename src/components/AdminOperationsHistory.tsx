@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -16,6 +15,16 @@ interface AdminOperation {
   user_id: string;
   user_name: string;
   pppoker_id: string;
+}
+
+interface AuthUser {
+  id: string;
+  email?: string;
+  user_metadata?: {
+    name?: string;
+    pppoker_id?: string;
+    ppokerId?: string;
+  };
 }
 
 const AdminOperationsHistory = () => {
@@ -73,7 +82,7 @@ const AdminOperationsHistory = () => {
 
       // Create a map of auth users data as fallback
       const authUsersMap = new Map();
-      authUsersData?.users?.forEach(user => {
+      (authUsersData?.users as AuthUser[] || []).forEach(user => {
         authUsersMap.set(user.id, {
           name: user.user_metadata?.name || user.email,
           pppoker_id: user.user_metadata?.pppoker_id || user.user_metadata?.ppokerId || 'N/A'
