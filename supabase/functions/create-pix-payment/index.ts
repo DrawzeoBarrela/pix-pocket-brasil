@@ -27,6 +27,9 @@ serve(async (req) => {
 
     console.log('Creating PIX payment for amount:', amount)
 
+    // Gerar um idempotency key único para esta operação
+    const idempotencyKey = `${operationId}-${Date.now()}`
+
     // Criar payment no Mercado Pago
     const paymentData = {
       transaction_amount: parseFloat(amount),
@@ -42,6 +45,7 @@ serve(async (req) => {
       headers: {
         'Authorization': `Bearer ${mercadoPagoAccessToken}`,
         'Content-Type': 'application/json',
+        'X-Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify(paymentData)
     })
@@ -49,7 +53,7 @@ serve(async (req) => {
     if (!mercadoPagoResponse.ok) {
       const errorData = await mercadoPagoResponse.text()
       console.error('Mercado Pago error:', errorData)
-      throw new Error('Erro ao criar pagamento no Mercado Pago')
+      throw new Error(`Erro ao criar pagamento no Mercado Pago: ${mercadoPagoResponse.status}`)
     }
 
     const paymentResult = await mercadoPagoResponse.json()
@@ -59,6 +63,7 @@ serve(async (req) => {
     const pixData = paymentResult.point_of_interaction?.transaction_data
     
     if (!pixData) {
+      console.error('Payment result:', JSON.stringify(paymentResult, null, 2))
       throw new Error('Dados do PIX não encontrados na resposta')
     }
 
