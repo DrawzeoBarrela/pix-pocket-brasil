@@ -74,8 +74,8 @@ const WithdrawCard = ({ onQrCodeGenerated }: WithdrawCardProps) => {
       const { error: updateError } = await supabase
         .from('operations')
         .update({
-          payment_id: pixData.payment_id,
-          payment_data: pixData
+          mercado_pago_payment_id: pixData.payment_id,
+          pix_qr_code: pixData.qr_code_text
         })
         .eq('id', operation.id);
 
