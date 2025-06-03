@@ -9,10 +9,12 @@ import OperationsHistory from '@/components/OperationsHistory';
 
 const Dashboard = () => {
   const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [pixCode, setPixCode] = useState('');
   const [showQrCode, setShowQrCode] = useState(false);
 
-  const handleQrCodeGenerated = (url: string) => {
+  const handleQrCodeGenerated = (url: string, code?: string) => {
     setQrCodeUrl(url);
+    setPixCode(code || '');
     setShowQrCode(true);
   };
 
@@ -45,6 +47,7 @@ const Dashboard = () => {
           isOpen={showQrCode} 
           onClose={() => setShowQrCode(false)}
           qrCodeUrl={qrCodeUrl}
+          pixCode={pixCode}
         />
       </div>
     </div>
