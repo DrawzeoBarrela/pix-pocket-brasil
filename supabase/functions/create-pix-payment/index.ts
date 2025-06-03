@@ -30,7 +30,7 @@ serve(async (req) => {
     // Criar payment no Mercado Pago
     const paymentData = {
       transaction_amount: parseFloat(amount),
-      description: description || `Saque - Operação ${operationId}`,
+      description: description || `Depósito - Operação ${operationId}`,
       payment_method_id: 'pix',
       payer: {
         email: 'user@example.com', // Você pode pegar do usuário autenticado

@@ -32,8 +32,8 @@ const Dashboard = () => {
 
             <TabsContent value="operations">
               <div className="grid md:grid-cols-2 gap-6">
-                <DepositCard />
-                <WithdrawCard onQrCodeGenerated={handleQrCodeGenerated} />
+                <DepositCard onQrCodeGenerated={handleQrCodeGenerated} />
+                <WithdrawCard />
               </div>
             </TabsContent>
 

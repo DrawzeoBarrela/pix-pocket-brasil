@@ -42,12 +42,12 @@ const QRCodeModal = ({ isOpen, onClose, qrCodeUrl, pixCode }: QRCodeModalProps) 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <QrCode size={20} />
-            QR Code PIX - Mercado Pago
+            QR Code PIX - Depósito
           </DialogTitle>
         </DialogHeader>
         <div className="text-center space-y-4">
           <p className="text-sm text-gray-600">
-            Escaneie o QR Code abaixo para efetuar o pagamento PIX
+            Escaneie o QR Code abaixo para efetuar o depósito PIX
           </p>
           {qrCodeUrl && (
             <img 
@@ -90,7 +90,7 @@ const QRCodeModal = ({ isOpen, onClose, qrCodeUrl, pixCode }: QRCodeModalProps) 
           )}
           
           <p className="text-xs text-gray-500">
-            Após o pagamento, sua solicitação será processada automaticamente.
+            Após o pagamento, seu depósito será processado automaticamente.
           </p>
         </div>
       </DialogContent>
