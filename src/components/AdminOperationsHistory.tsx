@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -15,6 +16,7 @@ interface AdminOperation {
   user_id: string;
   user_name: string;
   pppoker_id: string;
+  pix_key?: string;
 }
 
 interface AuthUser {
@@ -43,7 +45,7 @@ const AdminOperationsHistory = () => {
       // Get all operations (admin policy will allow this)
       const { data: operationsData, error: operationsError } = await supabase
         .from('operations')
-        .select('id, type, amount, status, created_at, user_id')
+        .select('id, type, amount, status, created_at, user_id, pix_key')
         .order('created_at', { ascending: false });
 
       if (operationsError) {
@@ -102,7 +104,8 @@ const AdminOperationsHistory = () => {
           created_at: operation.created_at,
           user_id: operation.user_id,
           user_name: profile?.name || authUser?.name || 'Usuário não encontrado',
-          pppoker_id: profile?.pppoker_id || authUser?.pppoker_id || 'N/A'
+          pppoker_id: profile?.pppoker_id || authUser?.pppoker_id || 'N/A',
+          pix_key: operation.pix_key
         };
       });
 
@@ -152,57 +155,67 @@ const AdminOperationsHistory = () => {
             <p>Nenhuma operação encontrada.</p>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Usuário</TableHead>
-                <TableHead>PPPoker ID</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Data</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {operations.map((operation) => (
-                <TableRow key={operation.id}>
-                  <TableCell className="font-medium">
-                    {operation.user_name}
-                  </TableCell>
-                  <TableCell>
-                    {operation.pppoker_id}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {operation.type === 'deposit' ? (
-                        <ArrowDownCircle className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <ArrowUpCircle className="h-4 w-4 text-red-600" />
-                      )}
-                      <span className="capitalize">
-                        {operation.type === 'deposit' ? 'Depósito' : 'Saque'}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    R$ {operation.amount.toFixed(2)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant={operation.status === 'confirmed' ? 'default' : 'secondary'}
-                      className={operation.status === 'confirmed' ? 'bg-green-600' : ''}
-                    >
-                      {operation.status === 'confirmed' ? 'Confirmado' : 'Pendente'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {new Date(operation.created_at).toLocaleDateString('pt-BR')} às{' '}
-                    {new Date(operation.created_at).toLocaleTimeString('pt-BR')}
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Usuário</TableHead>
+                  <TableHead>PPPoker ID</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Valor</TableHead>
+                  <TableHead>Chave PIX</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Data</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {operations.map((operation) => (
+                  <TableRow key={operation.id}>
+                    <TableCell className="font-medium">
+                      {operation.user_name}
+                    </TableCell>
+                    <TableCell>
+                      {operation.pppoker_id}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {operation.type === 'deposit' ? (
+                          <ArrowDownCircle className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <ArrowUpCircle className="h-4 w-4 text-red-600" />
+                        )}
+                        <span className="capitalize">
+                          {operation.type === 'deposit' ? 'Depósito' : 'Saque'}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      R$ {operation.amount.toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      {operation.type === 'withdrawal' && operation.pix_key ? (
+                        <span className="text-sm text-gray-600">{operation.pix_key}</span>
+                      ) : (
+                        <span className="text-sm text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={operation.status === 'confirmed' ? 'default' : 'secondary'}
+                        className={operation.status === 'confirmed' ? 'bg-green-600' : ''}
+                      >
+                        {operation.status === 'confirmed' ? 'Confirmado' : 'Pendente'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(operation.created_at).toLocaleDateString('pt-BR')} às{' '}
+                      {new Date(operation.created_at).toLocaleTimeString('pt-BR')}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </CardContent>
     </Card>

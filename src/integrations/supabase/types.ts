@@ -18,6 +18,7 @@ export type Database = {
           id: string
           mercado_pago_payment_id: string | null
           notes: string | null
+          pix_key: string | null
           pix_qr_code: string | null
           status: Database["public"]["Enums"]["operation_status"]
           type: Database["public"]["Enums"]["operation_type"]
@@ -32,6 +33,7 @@ export type Database = {
           id?: string
           mercado_pago_payment_id?: string | null
           notes?: string | null
+          pix_key?: string | null
           pix_qr_code?: string | null
           status?: Database["public"]["Enums"]["operation_status"]
           type: Database["public"]["Enums"]["operation_type"]
@@ -46,6 +48,7 @@ export type Database = {
           id?: string
           mercado_pago_payment_id?: string | null
           notes?: string | null
+          pix_key?: string | null
           pix_qr_code?: string | null
           status?: Database["public"]["Enums"]["operation_status"]
           type?: Database["public"]["Enums"]["operation_type"]

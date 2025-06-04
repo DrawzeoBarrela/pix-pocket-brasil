@@ -20,6 +20,7 @@ interface Operation {
   user_id: string;
   user_name: string;
   pppoker_id: string;
+  pix_key?: string;
 }
 
 interface AuthUser {
@@ -49,7 +50,7 @@ const Admin = () => {
       // Get all operations (admin policy will allow this)
       const { data: operationsData, error: operationsError } = await supabase
         .from('operations')
-        .select('id, type, amount, status, created_at, user_id')
+        .select('id, type, amount, status, created_at, user_id, pix_key')
         .order('created_at', { ascending: false });
 
       if (operationsError) {
@@ -108,7 +109,8 @@ const Admin = () => {
           created_at: operation.created_at,
           user_id: operation.user_id,
           user_name: profile?.name || authUser?.name || 'Usuário não encontrado',
-          pppoker_id: profile?.pppoker_id || authUser?.pppoker_id || 'N/A'
+          pppoker_id: profile?.pppoker_id || authUser?.pppoker_id || 'N/A',
+          pix_key: operation.pix_key
         };
       });
 
@@ -163,6 +165,9 @@ const Admin = () => {
           <div className="space-y-1">
             <h3 className="font-semibold text-lg">{operation.user_name}</h3>
             <p className="text-sm text-gray-600">PPPoker ID: {operation.pppoker_id}</p>
+            {operation.type === 'withdrawal' && operation.pix_key && (
+              <p className="text-sm text-gray-600">Chave PIX: {operation.pix_key}</p>
+            )}
             <p className="text-sm text-gray-500">Data: {new Date(operation.created_at).toLocaleDateString('pt-BR')}</p>
           </div>
           <div className="text-right">

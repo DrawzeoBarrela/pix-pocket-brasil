@@ -4,13 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowDownCircle } from 'lucide-react';
+import { ArrowUpCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 const WithdrawCard = () => {
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [pixKey, setPixKey] = useState('');
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -24,13 +25,23 @@ const WithdrawCard = () => {
       return;
     }
 
+    if (!pixKey.trim()) {
+      toast({
+        title: "Erro",
+        description: "Digite uma chave PIX válida para receber o saque.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('operations')
         .insert({
           user_id: user?.id,
           type: 'withdrawal',
-          amount: parseFloat(withdrawAmount)
+          amount: parseFloat(withdrawAmount),
+          pix_key: pixKey.trim()
         });
 
       if (error) throw error;
@@ -41,6 +52,7 @@ const WithdrawCard = () => {
       });
 
       setWithdrawAmount('');
+      setPixKey('');
     } catch (error: any) {
       toast({
         title: "Erro",
@@ -54,7 +66,7 @@ const WithdrawCard = () => {
     <Card className="shadow-lg">
       <CardHeader className="text-center">
         <CardTitle className="flex items-center justify-center gap-2 text-red-600">
-          <ArrowDownCircle size={24} />
+          <ArrowUpCircle size={24} />
           Saque
         </CardTitle>
       </CardHeader>
@@ -69,6 +81,16 @@ const WithdrawCard = () => {
             onChange={(e) => setWithdrawAmount(e.target.value)}
             min="0"
             step="0.01"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="pixKey">Chave PIX para Recebimento</Label>
+          <Input
+            id="pixKey"
+            type="text"
+            placeholder="Digite sua chave PIX (CPF, e-mail, telefone ou chave aleatória)"
+            value={pixKey}
+            onChange={(e) => setPixKey(e.target.value)}
           />
         </div>
         <Button 
