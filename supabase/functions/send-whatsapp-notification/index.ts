@@ -49,7 +49,7 @@ serve(async (req) => {
     console.log('Sending WhatsApp notification:', { type, amount, userName })
 
     // Enviar notificação via CallMeBot API
-    const callmeBotUrl = `https://api.callmebot.com/whatsapp.php?phone=YOUR_PHONE_NUMBER&text=${encodeURIComponent(message)}&apikey=${callmeBotApiKey}`
+    const callmeBotUrl = `https://api.callmebot.com/whatsapp.php?phone=555597123681&text=${encodeURIComponent(message)}&apikey=${callmeBotApiKey}`
     
     const response = await fetch(callmeBotUrl, {
       method: 'GET'
