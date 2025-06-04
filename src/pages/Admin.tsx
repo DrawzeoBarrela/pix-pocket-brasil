@@ -43,6 +43,23 @@ const Admin = () => {
     fetchOperations();
   }, []);
 
+  const sendWhatsAppNotification = async (operationData: Operation, newStatus: string) => {
+    try {
+      await supabase.functions.invoke('send-whatsapp-notification', {
+        body: {
+          type: operationData.type,
+          amount: operationData.amount,
+          userName: operationData.user_name,
+          ppokerId: operationData.pppoker_id,
+          status: newStatus,
+          pixKey: operationData.pix_key
+        }
+      });
+    } catch (error) {
+      console.error('Erro ao enviar notificação WhatsApp:', error);
+    }
+  };
+
   const fetchOperations = async () => {
     try {
       console.log('Fetching operations...');
@@ -139,6 +156,12 @@ const Admin = () => {
         .eq('id', id);
 
       if (error) throw error;
+
+      // Encontrar a operação para enviar notificação
+      const operation = operations.find(op => op.id === id);
+      if (operation) {
+        await sendWhatsAppNotification(operation, 'confirmed');
+      }
 
       await fetchOperations();
       

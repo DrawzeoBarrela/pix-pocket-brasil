@@ -19,6 +19,22 @@ const DepositCard = ({ onQrCodeGenerated }: DepositCardProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  const sendWhatsAppNotification = async (operationData: any) => {
+    try {
+      await supabase.functions.invoke('send-whatsapp-notification', {
+        body: {
+          type: 'deposit',
+          amount: operationData.amount,
+          userName: operationData.user_name,
+          ppokerId: operationData.pppoker_id,
+          status: 'pending'
+        }
+      });
+    } catch (error) {
+      console.error('Erro ao enviar notificação WhatsApp:', error);
+    }
+  };
+
   const handleDeposit = async () => {
     if (!depositAmount || parseFloat(depositAmount) <= 0) {
       toast({
@@ -82,6 +98,20 @@ const DepositCard = ({ onQrCodeGenerated }: DepositCardProps) => {
       if (updateError) {
         console.error('Update operation error:', updateError);
       }
+
+      // Buscar dados do usuário para a notificação
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name, pppoker_id')
+        .eq('id', user?.id)
+        .single();
+
+      // Enviar notificação WhatsApp
+      await sendWhatsAppNotification({
+        amount: parseFloat(depositAmount),
+        user_name: profile?.name || user?.email || 'Usuário',
+        pppoker_id: profile?.pppoker_id || 'N/A'
+      });
 
       // Converter base64 para data URL se necessário
       const qrCodeUrl = pixData.qr_code.startsWith('data:image') 

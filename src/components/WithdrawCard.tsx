@@ -15,6 +15,23 @@ const WithdrawCard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  const sendWhatsAppNotification = async (operationData: any) => {
+    try {
+      await supabase.functions.invoke('send-whatsapp-notification', {
+        body: {
+          type: 'withdrawal',
+          amount: operationData.amount,
+          userName: operationData.user_name,
+          ppokerId: operationData.pppoker_id,
+          status: 'pending',
+          pixKey: operationData.pix_key
+        }
+      });
+    } catch (error) {
+      console.error('Erro ao enviar notificação WhatsApp:', error);
+    }
+  };
+
   const handleWithdraw = async () => {
     if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
       toast({
@@ -45,6 +62,21 @@ const WithdrawCard = () => {
         });
 
       if (error) throw error;
+
+      // Buscar dados do usuário para a notificação
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name, pppoker_id')
+        .eq('id', user?.id)
+        .single();
+
+      // Enviar notificação WhatsApp
+      await sendWhatsAppNotification({
+        amount: parseFloat(withdrawAmount),
+        user_name: profile?.name || user?.email || 'Usuário',
+        pppoker_id: profile?.pppoker_id || 'N/A',
+        pix_key: pixKey.trim()
+      });
 
       toast({
         title: "Solicitação enviada!",
