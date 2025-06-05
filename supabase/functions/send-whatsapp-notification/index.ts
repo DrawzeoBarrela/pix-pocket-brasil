@@ -26,7 +26,7 @@ serve(async (req) => {
 
     // Buscar as API keys para cada número
     const callmeBotApiKey1 = Deno.env.get('CALLMEBOT_API_KEY')
-    const callmeBotApiKey2 = Deno.env.get('CALLMEBOT_API_KEY_2')
+    const callmeBotApiKey2 = '6432823' // API key específica para o número 555592215747
     
     if (!callmeBotApiKey1) {
       throw new Error('CallMeBot API key principal não configurada')
@@ -54,7 +54,7 @@ serve(async (req) => {
     // Configurar números e suas respectivas API keys
     const phoneConfigs = [
       { phone: '555597123681', apiKey: callmeBotApiKey1 },
-      { phone: '555592215747', apiKey: callmeBotApiKey2 || callmeBotApiKey1 } // Fallback para a mesma key se não tiver a segunda
+      { phone: '555592215747', apiKey: callmeBotApiKey2 }
     ]
     
     // Enviar notificação para ambos os números
