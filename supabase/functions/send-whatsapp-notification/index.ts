@@ -24,9 +24,12 @@ serve(async (req) => {
   try {
     const { type, amount, userName, ppokerId, status, pixKey }: NotificationData = await req.json()
 
-    const callmeBotApiKey = Deno.env.get('CALLMEBOT_API_KEY')
-    if (!callmeBotApiKey) {
-      throw new Error('CallMeBot API key não configurada')
+    // Buscar as API keys para cada número
+    const callmeBotApiKey1 = Deno.env.get('CALLMEBOT_API_KEY')
+    const callmeBotApiKey2 = Deno.env.get('CALLMEBOT_API_KEY_2')
+    
+    if (!callmeBotApiKey1) {
+      throw new Error('CallMeBot API key principal não configurada')
     }
 
     // Formatar a mensagem baseada no tipo de operação
@@ -48,52 +51,92 @@ serve(async (req) => {
 
     console.log('Sending WhatsApp notification:', { type, amount, userName })
 
-    // Lista de números para enviar as notificações
-    const phoneNumbers = ['555597123681', '555592215747']
+    // Configurar números e suas respectivas API keys
+    const phoneConfigs = [
+      { phone: '555597123681', apiKey: callmeBotApiKey1 },
+      { phone: '555592215747', apiKey: callmeBotApiKey2 || callmeBotApiKey1 } // Fallback para a mesma key se não tiver a segunda
+    ]
     
     // Enviar notificação para ambos os números
-    const sendPromises = phoneNumbers.map(async (phone) => {
-      const callmeBotUrl = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encodeURIComponent(message)}&apikey=${callmeBotApiKey}`
-      
-      const response = await fetch(callmeBotUrl, {
-        method: 'GET'
-      })
-
-      if (!response.ok) {
-        throw new Error(`Erro ao enviar mensagem WhatsApp para ${phone}: ${response.status}`)
+    const sendPromises = phoneConfigs.map(async (config) => {
+      if (!config.apiKey) {
+        console.log(`API key não encontrada para ${config.phone}, pulando...`)
+        return { phone: config.phone, success: false, error: 'API key não configurada' }
       }
 
-      const result = await response.text()
-      console.log(`WhatsApp notification sent successfully to ${phone}:`, result)
-      return { phone, success: true, result }
+      const callmeBotUrl = `https://api.callmebot.com/whatsapp.php?phone=${config.phone}&text=${encodeURIComponent(message)}&apikey=${config.apiKey}`
+      
+      try {
+        const response = await fetch(callmeBotUrl, {
+          method: 'GET'
+        })
+
+        const result = await response.text()
+        console.log(`WhatsApp notification response for ${config.phone}:`, result)
+
+        // Verificar se a resposta contém erro de API key
+        if (result.includes('APIKey is invalid')) {
+          throw new Error(`API key inválida para ${config.phone}`)
+        }
+
+        if (!response.ok) {
+          throw new Error(`Erro HTTP ${response.status} para ${config.phone}`)
+        }
+
+        return { phone: config.phone, success: true, result }
+      } catch (error) {
+        console.error(`Erro ao enviar para ${config.phone}:`, error)
+        return { phone: config.phone, success: false, error: error.message }
+      }
     })
 
     // Aguardar todas as mensagens serem enviadas
     const results = await Promise.allSettled(sendPromises)
     
-    // Verificar se pelo menos uma mensagem foi enviada com sucesso
-    const successCount = results.filter(result => result.status === 'fulfilled').length
-    const failureCount = results.filter(result => result.status === 'rejected').length
+    // Processar resultados
+    const successResults = []
+    const failureResults = []
 
-    if (successCount === 0) {
-      throw new Error('Falha ao enviar mensagem para todos os números')
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        if (result.value.success) {
+          successResults.push(result.value)
+        } else {
+          failureResults.push(result.value)
+        }
+      } else {
+        failureResults.push({
+          phone: phoneConfigs[index].phone,
+          success: false,
+          error: result.reason?.message || 'Erro desconhecido'
+        })
+      }
+    })
+
+    const successCount = successResults.length
+    const failureCount = failureResults.length
+
+    console.log(`Resultados: ${successCount} sucessos, ${failureCount} falhas`)
+    
+    if (failureCount > 0) {
+      console.log('Falhas detalhadas:', failureResults)
     }
-
-    console.log(`Mensagens enviadas: ${successCount} sucessos, ${failureCount} falhas`)
 
     return new Response(
       JSON.stringify({
-        success: true,
-        message: `Notificação WhatsApp enviada para ${successCount} de ${phoneNumbers.length} números`,
+        success: successCount > 0,
+        message: `Notificação WhatsApp: ${successCount} sucessos, ${failureCount} falhas`,
         details: {
           successCount,
           failureCount,
-          totalNumbers: phoneNumbers.length
+          totalNumbers: phoneConfigs.length,
+          successes: successResults,
+          failures: failureResults
         }
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+        status: successCount > 0 ? 200 : 400,
       }
     )
 
