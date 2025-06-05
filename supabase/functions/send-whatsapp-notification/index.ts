@@ -48,24 +48,48 @@ serve(async (req) => {
 
     console.log('Sending WhatsApp notification:', { type, amount, userName })
 
-    // Enviar notificação via CallMeBot API
-    const callmeBotUrl = `https://api.callmebot.com/whatsapp.php?phone=555597123681&text=${encodeURIComponent(message)}&apikey=${callmeBotApiKey}`
+    // Lista de números para enviar as notificações
+    const phoneNumbers = ['555597123681', '555592215747']
     
-    const response = await fetch(callmeBotUrl, {
-      method: 'GET'
+    // Enviar notificação para ambos os números
+    const sendPromises = phoneNumbers.map(async (phone) => {
+      const callmeBotUrl = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encodeURIComponent(message)}&apikey=${callmeBotApiKey}`
+      
+      const response = await fetch(callmeBotUrl, {
+        method: 'GET'
+      })
+
+      if (!response.ok) {
+        throw new Error(`Erro ao enviar mensagem WhatsApp para ${phone}: ${response.status}`)
+      }
+
+      const result = await response.text()
+      console.log(`WhatsApp notification sent successfully to ${phone}:`, result)
+      return { phone, success: true, result }
     })
 
-    if (!response.ok) {
-      throw new Error(`Erro ao enviar mensagem WhatsApp: ${response.status}`)
+    // Aguardar todas as mensagens serem enviadas
+    const results = await Promise.allSettled(sendPromises)
+    
+    // Verificar se pelo menos uma mensagem foi enviada com sucesso
+    const successCount = results.filter(result => result.status === 'fulfilled').length
+    const failureCount = results.filter(result => result.status === 'rejected').length
+
+    if (successCount === 0) {
+      throw new Error('Falha ao enviar mensagem para todos os números')
     }
 
-    const result = await response.text()
-    console.log('WhatsApp notification sent successfully:', result)
+    console.log(`Mensagens enviadas: ${successCount} sucessos, ${failureCount} falhas`)
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'Notificação WhatsApp enviada com sucesso'
+        message: `Notificação WhatsApp enviada para ${successCount} de ${phoneNumbers.length} números`,
+        details: {
+          successCount,
+          failureCount,
+          totalNumbers: phoneNumbers.length
+        }
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
