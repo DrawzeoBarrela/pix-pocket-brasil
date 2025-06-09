@@ -8,6 +8,7 @@ import { ArrowUpCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import AdminObservationField from '@/components/AdminObservationField';
 
 interface DepositCardProps {
   onQrCodeGenerated: (url: string, pixCode?: string) => void;
@@ -16,7 +17,9 @@ interface DepositCardProps {
 const DepositCard = ({ onQrCodeGenerated }: DepositCardProps) => {
   const [depositAmount, setDepositAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { user } = useAuth();
+  const [currentOperationId, setCurrentOperationId] = useState<string | null>(null);
+  const [adminNotes, setAdminNotes] = useState('');
+  const { user, isAdmin } = useAuth();
   const { toast } = useToast();
 
   const sendWhatsAppNotification = async (operationData: any) => {
@@ -54,7 +57,8 @@ const DepositCard = ({ onQrCodeGenerated }: DepositCardProps) => {
         .insert({
           user_id: user?.id,
           type: 'deposit',
-          amount: parseFloat(depositAmount)
+          amount: parseFloat(depositAmount),
+          notes: isAdmin && adminNotes.trim() ? adminNotes.trim() : null
         })
         .select()
         .single();
@@ -62,6 +66,7 @@ const DepositCard = ({ onQrCodeGenerated }: DepositCardProps) => {
       if (operationError) throw operationError;
 
       console.log('Operation created:', operation.id);
+      setCurrentOperationId(operation.id);
 
       // Criar pagamento PIX no Mercado Pago
       const { data: pixData, error: pixError } = await supabase.functions.invoke(
@@ -126,6 +131,8 @@ const DepositCard = ({ onQrCodeGenerated }: DepositCardProps) => {
       });
 
       setDepositAmount('');
+      setAdminNotes('');
+      setCurrentOperationId(null);
     } catch (error: any) {
       console.error('Deposit error:', error);
       toast({
@@ -160,6 +167,21 @@ const DepositCard = ({ onQrCodeGenerated }: DepositCardProps) => {
             disabled={isLoading}
           />
         </div>
+
+        {isAdmin && (
+          <div className="space-y-2">
+            <Label htmlFor="adminNotes">Observação Administrativa</Label>
+            <textarea
+              id="adminNotes"
+              placeholder="Adicionar observação sobre este depósito..."
+              value={adminNotes}
+              onChange={(e) => setAdminNotes(e.target.value)}
+              className="w-full min-h-[60px] px-3 py-2 text-sm border border-input rounded-md bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+              disabled={isLoading}
+            />
+          </div>
+        )}
+
         <Button 
           onClick={handleDeposit}
           className="w-full bg-green-600 hover:bg-green-700"

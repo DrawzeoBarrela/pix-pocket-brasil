@@ -12,7 +12,8 @@ import { supabase } from '@/integrations/supabase/client';
 const WithdrawCard = () => {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [pixKey, setPixKey] = useState('');
-  const { user } = useAuth();
+  const [adminNotes, setAdminNotes] = useState('');
+  const { user, isAdmin } = useAuth();
   const { toast } = useToast();
 
   const sendWhatsAppNotification = async (operationData: any) => {
@@ -58,7 +59,8 @@ const WithdrawCard = () => {
           user_id: user?.id,
           type: 'withdrawal',
           amount: parseFloat(withdrawAmount),
-          pix_key: pixKey.trim()
+          pix_key: pixKey.trim(),
+          notes: isAdmin && adminNotes.trim() ? adminNotes.trim() : null
         });
 
       if (error) throw error;
@@ -85,6 +87,7 @@ const WithdrawCard = () => {
 
       setWithdrawAmount('');
       setPixKey('');
+      setAdminNotes('');
     } catch (error: any) {
       toast({
         title: "Erro",
@@ -125,6 +128,20 @@ const WithdrawCard = () => {
             onChange={(e) => setPixKey(e.target.value)}
           />
         </div>
+
+        {isAdmin && (
+          <div className="space-y-2">
+            <Label htmlFor="adminNotesWithdraw">Observação Administrativa</Label>
+            <textarea
+              id="adminNotesWithdraw"
+              placeholder="Adicionar observação sobre este saque..."
+              value={adminNotes}
+              onChange={(e) => setAdminNotes(e.target.value)}
+              className="w-full min-h-[60px] px-3 py-2 text-sm border border-input rounded-md bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+            />
+          </div>
+        )}
+
         <Button 
           onClick={handleWithdraw}
           className="w-full bg-red-600 hover:bg-red-700"
