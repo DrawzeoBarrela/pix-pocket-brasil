@@ -1,11 +1,12 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { ArrowUpCircle, ArrowDownCircle, History } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ArrowUpCircle, ArrowDownCircle, History, FileText, Edit } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import AdminObservationField from '@/components/AdminObservationField';
 
 interface AdminOperation {
   id: string;
@@ -17,6 +18,7 @@ interface AdminOperation {
   user_name: string;
   pppoker_id: string;
   pix_key?: string;
+  notes?: string | null;
 }
 
 interface AuthUser {
@@ -33,6 +35,7 @@ const AdminOperationsHistory = () => {
   const { toast } = useToast();
   const [operations, setOperations] = useState<AdminOperation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingNotes, setEditingNotes] = useState<string | null>(null);
 
   useEffect(() => {
     fetchOperations();
@@ -45,7 +48,7 @@ const AdminOperationsHistory = () => {
       // Get all operations (admin policy will allow this)
       const { data: operationsData, error: operationsError } = await supabase
         .from('operations')
-        .select('id, type, amount, status, created_at, user_id, pix_key')
+        .select('id, type, amount, status, created_at, user_id, pix_key, notes')
         .order('created_at', { ascending: false });
 
       if (operationsError) {
@@ -105,7 +108,8 @@ const AdminOperationsHistory = () => {
           user_id: operation.user_id,
           user_name: profile?.name || authUser?.name || 'Usuário não encontrado',
           pppoker_id: profile?.pppoker_id || authUser?.pppoker_id || 'N/A',
-          pix_key: operation.pix_key
+          pix_key: operation.pix_key,
+          notes: operation.notes
         };
       });
 
@@ -121,6 +125,13 @@ const AdminOperationsHistory = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleNotesUpdate = (operationId: string, notes: string) => {
+    setOperations(prev => prev.map(op => 
+      op.id === operationId ? { ...op, notes } : op
+    ));
+    setEditingNotes(null);
   };
 
   if (loading) {
@@ -165,6 +176,7 @@ const AdminOperationsHistory = () => {
                   <TableHead>Valor</TableHead>
                   <TableHead>Chave PIX</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Observações</TableHead>
                   <TableHead>Data</TableHead>
                 </TableRow>
               </TableHeader>
@@ -206,6 +218,34 @@ const AdminOperationsHistory = () => {
                       >
                         {operation.status === 'confirmed' ? 'Confirmado' : 'Pendente'}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-[200px]">
+                      {editingNotes === operation.id ? (
+                        <div className="min-w-[200px]">
+                          <AdminObservationField
+                            operationId={operation.id}
+                            currentNotes={operation.notes}
+                            onNotesUpdate={(notes) => handleNotesUpdate(operation.id, notes)}
+                            isCompact={true}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex items-start gap-2">
+                          <div className="flex-1 text-sm text-muted-foreground max-w-[150px] break-words">
+                            {operation.notes || (
+                              <span className="italic text-gray-400">Sem observação</span>
+                            )}
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setEditingNotes(operation.id)}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Edit size={12} />
+                          </Button>
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       {new Date(operation.created_at).toLocaleDateString('pt-BR')} às{' '}

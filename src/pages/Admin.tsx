@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { DarkModeToggle } from '@/components/DarkModeToggle';
 import AdminOperationsHistory from '@/components/AdminOperationsHistory';
+import AdminObservationField from '@/components/AdminObservationField';
 
 interface Operation {
   id: string;
@@ -21,6 +22,7 @@ interface Operation {
   user_name: string;
   pppoker_id: string;
   pix_key?: string;
+  notes?: string | null;
 }
 
 interface AuthUser {
@@ -67,7 +69,7 @@ const Admin = () => {
       // Get all operations (admin policy will allow this)
       const { data: operationsData, error: operationsError } = await supabase
         .from('operations')
-        .select('id, type, amount, status, created_at, user_id, pix_key')
+        .select('id, type, amount, status, created_at, user_id, pix_key, notes')
         .order('created_at', { ascending: false });
 
       if (operationsError) {
@@ -127,7 +129,8 @@ const Admin = () => {
           user_id: operation.user_id,
           user_name: profile?.name || authUser?.name || 'Usuário não encontrado',
           pppoker_id: profile?.pppoker_id || authUser?.pppoker_id || 'N/A',
-          pix_key: operation.pix_key
+          pix_key: operation.pix_key,
+          notes: operation.notes
         };
       });
 
@@ -204,6 +207,20 @@ const Admin = () => {
               {operation.status === 'confirmed' ? 'Confirmado' : 'Pendente'}
             </Badge>
           </div>
+        </div>
+        
+        {/* Observação administrativa */}
+        <div className="mb-4 border-t pt-4">
+          <AdminObservationField
+            operationId={operation.id}
+            currentNotes={operation.notes}
+            onNotesUpdate={(notes) => {
+              setOperations(prev => prev.map(op => 
+                op.id === operation.id ? { ...op, notes } : op
+              ));
+            }}
+            isCompact={true}
+          />
         </div>
         
         {operation.status === 'pending' && (
