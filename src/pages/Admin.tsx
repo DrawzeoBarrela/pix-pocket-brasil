@@ -4,13 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, ArrowUpCircle, ArrowDownCircle, Check, History } from 'lucide-react';
+import { LogOut, ArrowUpCircle, ArrowDownCircle, Check, History, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { DarkModeToggle } from '@/components/DarkModeToggle';
 import AdminOperationsHistory from '@/components/AdminOperationsHistory';
 import AdminObservationField from '@/components/AdminObservationField';
+import AdminFinancialSummary from '@/components/AdminFinancialSummary';
 
 interface Operation {
   id: string;
@@ -285,7 +286,7 @@ const Admin = () => {
         {/* Main Content */}
         <div className="max-w-6xl mx-auto">
           <Tabs defaultValue="withdrawals" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-8">
+            <TabsList className="grid w-full grid-cols-4 mb-8">
               <TabsTrigger value="withdrawals" className="flex items-center gap-2">
                 <ArrowUpCircle size={16} />
                 Saques
@@ -293,6 +294,10 @@ const Admin = () => {
               <TabsTrigger value="deposits" className="flex items-center gap-2">
                 <ArrowDownCircle size={16} />
                 Depósitos
+              </TabsTrigger>
+              <TabsTrigger value="financial" className="flex items-center gap-2">
+                <TrendingUp size={16} />
+                Resumo
               </TabsTrigger>
               <TabsTrigger value="history" className="flex items-center gap-2">
                 <History size={16} />
@@ -354,6 +359,10 @@ const Admin = () => {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="financial">
+              <AdminFinancialSummary />
             </TabsContent>
 
             <TabsContent value="history">
