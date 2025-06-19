@@ -101,12 +101,12 @@ const Register = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ppokerId">PPPoker ID</Label>
+              <Label htmlFor="ppokerId">PPPoker ID (Seu ID de usuário)</Label>
               <Input
                 id="ppokerId"
                 name="ppokerId"
                 type="text"
-                placeholder="Seu ID do PPPoker"
+                placeholder="Seu ID de usuário do PPPoker"
                 value={formData.ppokerId}
                 onChange={handleChange}
                 required
