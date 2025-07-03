@@ -22,22 +22,6 @@ const DepositCard = ({ onQrCodeGenerated }: DepositCardProps) => {
   const { user, isAdmin } = useAuth();
   const { toast } = useToast();
 
-  const sendTelegramNotification = async (operationData: any) => {
-    try {
-      await supabase.functions.invoke('send-telegram-notification', {
-        body: {
-          type: 'deposit',
-          amount: operationData.amount,
-          userName: operationData.user_name,
-          ppokerId: operationData.pppoker_id,
-          status: 'pending'
-        }
-      });
-    } catch (error) {
-      console.error('Erro ao enviar notificação Telegram:', error);
-    }
-  };
-
   const handleDeposit = async () => {
     if (!depositAmount || parseFloat(depositAmount) <= 0) {
       toast({
@@ -104,20 +88,6 @@ const DepositCard = ({ onQrCodeGenerated }: DepositCardProps) => {
         console.error('Update operation error:', updateError);
       }
 
-      // Buscar dados do usuário para a notificação
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('name, pppoker_id')
-        .eq('id', user?.id)
-        .single();
-
-      // Enviar notificação Telegram
-      await sendTelegramNotification({
-        amount: parseFloat(depositAmount),
-        user_name: profile?.name || user?.email || 'Usuário',
-        pppoker_id: profile?.pppoker_id || 'N/A'
-      });
-
       // Converter base64 para data URL se necessário
       const qrCodeUrl = pixData.qr_code.startsWith('data:image') 
         ? pixData.qr_code 
@@ -127,7 +97,7 @@ const DepositCard = ({ onQrCodeGenerated }: DepositCardProps) => {
 
       toast({
         title: "PIX gerado com sucesso!",
-        description: `PIX de depósito de R$ ${depositAmount} criado.`,
+        description: `PIX de depósito de R$ ${depositAmount} criado. A notificação será enviada após a confirmação do pagamento.`,
       });
 
       setDepositAmount('');
