@@ -16,9 +16,9 @@ const WithdrawCard = () => {
   const { user, isAdmin } = useAuth();
   const { toast } = useToast();
 
-  const sendWhatsAppNotification = async (operationData: any) => {
+  const sendTelegramNotification = async (operationData: any) => {
     try {
-      await supabase.functions.invoke('send-whatsapp-notification', {
+      await supabase.functions.invoke('send-telegram-notification', {
         body: {
           type: 'withdrawal',
           amount: operationData.amount,
@@ -29,7 +29,7 @@ const WithdrawCard = () => {
         }
       });
     } catch (error) {
-      console.error('Erro ao enviar notificação WhatsApp:', error);
+      console.error('Erro ao enviar notificação Telegram:', error);
     }
   };
 
@@ -72,8 +72,8 @@ const WithdrawCard = () => {
         .eq('id', user?.id)
         .single();
 
-      // Enviar notificação WhatsApp
-      await sendWhatsAppNotification({
+      // Enviar notificação Telegram
+      await sendTelegramNotification({
         amount: parseFloat(withdrawAmount),
         user_name: profile?.name || user?.email || 'Usuário',
         pppoker_id: profile?.pppoker_id || 'N/A',

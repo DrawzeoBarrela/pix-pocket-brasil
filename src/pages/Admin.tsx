@@ -46,9 +46,9 @@ const Admin = () => {
     fetchOperations();
   }, []);
 
-  const sendWhatsAppNotification = async (operationData: Operation, newStatus: string) => {
+  const sendTelegramNotification = async (operationData: Operation, newStatus: string) => {
     try {
-      await supabase.functions.invoke('send-whatsapp-notification', {
+      await supabase.functions.invoke('send-telegram-notification', {
         body: {
           type: operationData.type,
           amount: operationData.amount,
@@ -59,7 +59,7 @@ const Admin = () => {
         }
       });
     } catch (error) {
-      console.error('Erro ao enviar notificação WhatsApp:', error);
+      console.error('Erro ao enviar notificação Telegram:', error);
     }
   };
 
@@ -164,7 +164,7 @@ const Admin = () => {
       // Encontrar a operação para enviar notificação
       const operation = operations.find(op => op.id === id);
       if (operation) {
-        await sendWhatsAppNotification(operation, 'confirmed');
+        await sendTelegramNotification(operation, 'confirmed');
       }
 
       await fetchOperations();

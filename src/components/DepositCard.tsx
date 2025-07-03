@@ -22,9 +22,9 @@ const DepositCard = ({ onQrCodeGenerated }: DepositCardProps) => {
   const { user, isAdmin } = useAuth();
   const { toast } = useToast();
 
-  const sendWhatsAppNotification = async (operationData: any) => {
+  const sendTelegramNotification = async (operationData: any) => {
     try {
-      await supabase.functions.invoke('send-whatsapp-notification', {
+      await supabase.functions.invoke('send-telegram-notification', {
         body: {
           type: 'deposit',
           amount: operationData.amount,
@@ -34,7 +34,7 @@ const DepositCard = ({ onQrCodeGenerated }: DepositCardProps) => {
         }
       });
     } catch (error) {
-      console.error('Erro ao enviar notificação WhatsApp:', error);
+      console.error('Erro ao enviar notificação Telegram:', error);
     }
   };
 
@@ -111,8 +111,8 @@ const DepositCard = ({ onQrCodeGenerated }: DepositCardProps) => {
         .eq('id', user?.id)
         .single();
 
-      // Enviar notificação WhatsApp
-      await sendWhatsAppNotification({
+      // Enviar notificação Telegram
+      await sendTelegramNotification({
         amount: parseFloat(depositAmount),
         user_name: profile?.name || user?.email || 'Usuário',
         pppoker_id: profile?.pppoker_id || 'N/A'
