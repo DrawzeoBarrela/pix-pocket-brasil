@@ -6,11 +6,14 @@ import DepositCard from '@/components/DepositCard';
 import WithdrawCard from '@/components/WithdrawCard';
 import QRCodeModal from '@/components/QRCodeModal';
 import OperationsHistory from '@/components/OperationsHistory';
+import PaymentStatusChecker from '@/components/PaymentStatusChecker';
+import { useAuth } from '@/hooks/useAuth';
 
 const Dashboard = () => {
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [pixCode, setPixCode] = useState('');
   const [showQrCode, setShowQrCode] = useState(false);
+  const { isAdmin } = useAuth();
 
   const handleQrCodeGenerated = (url: string, code?: string) => {
     setQrCodeUrl(url);
@@ -35,6 +38,8 @@ const Dashboard = () => {
                 <DepositCard onQrCodeGenerated={handleQrCodeGenerated} />
                 <WithdrawCard />
               </div>
+              
+              {isAdmin && <PaymentStatusChecker />}
             </TabsContent>
 
             <TabsContent value="history">
