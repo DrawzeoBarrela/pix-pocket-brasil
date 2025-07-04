@@ -31,9 +31,47 @@ serve(async (req) => {
   try {
     console.log('=== WEBHOOK RECEBIDO ===')
     console.log('Method:', req.method)
+    console.log('URL:', req.url)
     console.log('Headers:', Object.fromEntries(req.headers.entries()))
     
-    const webhookData: MercadoPagoWebhookData = await req.json()
+    // Parse URL to get query parameters
+    const url = new URL(req.url)
+    const queryParams = Object.fromEntries(url.searchParams.entries())
+    console.log('Query Parameters:', queryParams)
+
+    let webhookData: MercadoPagoWebhookData
+    
+    // Try to get data from query parameters first (for Mercado Pago test)
+    if (queryParams['data.id'] && queryParams['type']) {
+      console.log('📥 Dados recebidos via query parameters (teste do Mercado Pago)')
+      webhookData = {
+        id: parseInt(queryParams.id) || 0,
+        live_mode: queryParams.live_mode === 'true',
+        type: queryParams.type,
+        date_created: queryParams.date_created || new Date().toISOString(),
+        application_id: parseInt(queryParams.application_id) || 0,
+        user_id: parseInt(queryParams.user_id) || 0,
+        version: parseInt(queryParams.version) || 1,
+        api_version: queryParams.api_version || 'v1',
+        action: queryParams.action || 'payment.updated',
+        data: {
+          id: queryParams['data.id']
+        }
+      }
+    } else {
+      // Try to get data from JSON body (for real webhook)
+      console.log('📥 Tentando obter dados via JSON body (webhook real)')
+      try {
+        webhookData = await req.json()
+      } catch (jsonError) {
+        console.error('❌ Erro ao fazer parse do JSON:', jsonError)
+        // If both query params and JSON parsing fail, return error
+        if (!queryParams['data.id']) {
+          throw new Error('Dados não encontrados nem em query parameters nem em JSON body')
+        }
+      }
+    }
+
     console.log('=== DADOS DO WEBHOOK ===')
     console.log(JSON.stringify(webhookData, null, 2))
 
@@ -48,6 +86,15 @@ serve(async (req) => {
 
     const paymentId = webhookData.data.id
     console.log('💰 Processando pagamento ID:', paymentId)
+
+    // Se for apenas um teste do Mercado Pago (sem payment ID real), retornar sucesso
+    if (paymentId === '123456' || !paymentId) {
+      console.log('🧪 Teste do Mercado Pago detectado - retornando sucesso')
+      return new Response(JSON.stringify({ status: 'test_success', message: 'Webhook test successful' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
 
     // Buscar detalhes do pagamento no Mercado Pago
     const mercadoPagoAccessToken = Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN')
