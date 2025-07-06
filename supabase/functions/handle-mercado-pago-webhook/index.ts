@@ -96,6 +96,29 @@ serve(async (req) => {
       })
     }
 
+    // Validar assinatura webhook do Mercado Pago (se fornecida)
+    const signature = req.headers.get('x-signature')
+    const webhookSecret = Deno.env.get('MERCADO_PAGO_WEBHOOK_SECRET')
+    
+    if (signature && webhookSecret) {
+      console.log('🔐 Validando assinatura do webhook...')
+      const expectedSignature = await crypto.subtle.digest(
+        'SHA-256',
+        new TextEncoder().encode(JSON.stringify(webhookData) + webhookSecret)
+      )
+      const expectedSignatureHex = Array.from(new Uint8Array(expectedSignature))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('')
+      
+      if (!signature.includes(expectedSignatureHex)) {
+        console.error('❌ Assinatura inválida do webhook')
+        throw new Error('Assinatura inválida do webhook')
+      }
+      console.log('✅ Assinatura do webhook validada')
+    } else if (signature) {
+      console.log('⚠️ Assinatura recebida mas secret não configurado')
+    }
+
     // Buscar detalhes do pagamento no Mercado Pago
     const mercadoPagoAccessToken = Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN')
     if (!mercadoPagoAccessToken) {

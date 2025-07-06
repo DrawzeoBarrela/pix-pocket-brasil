@@ -34,7 +34,7 @@ const PaymentStatusChecker = () => {
       // Buscar operação no banco
       const { data: operation, error } = await supabase
         .from('operations')
-        .select('*, profiles(*)')
+        .select('*')
         .eq('mercado_pago_payment_id', paymentId)
         .single();
 
@@ -45,13 +45,21 @@ const PaymentStatusChecker = () => {
           message: 'Operação não encontrada no banco de dados',
           error: error.message
         });
-      } else {
-        setResult({
-          status: 'found',
-          operation,
-          message: 'Operação encontrada no banco'
-        });
+        return;
       }
+
+      // Buscar perfil do usuário
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', operation.user_id)
+        .single();
+
+      setResult({
+        status: 'found',
+        operation: { ...operation, profiles: profile },
+        message: 'Operação encontrada no banco'
+      });
 
       // Tentar chamar o webhook manualmente para testar
       try {
@@ -103,6 +111,89 @@ const PaymentStatusChecker = () => {
     }
   };
 
+  const manuallyConfirmPayment = async () => {
+    if (!paymentId.trim()) {
+      toast({
+        title: "Erro",
+        description: "Digite o ID do pagamento do Mercado Pago",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Buscar operação no banco
+      const { data: operation, error } = await supabase
+        .from('operations')
+        .select('*')
+        .eq('mercado_pago_payment_id', paymentId)
+        .eq('status', 'pending')
+        .single();
+
+      if (error || !operation) {
+        toast({
+          title: "Erro",
+          description: "Operação pendente não encontrada",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Buscar perfil do usuário
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', operation.user_id)
+        .single();
+
+      // Confirmar operação manualmente
+      const { error: updateError } = await supabase
+        .from('operations')
+        .update({
+          status: 'confirmed',
+          confirmed_at: new Date().toISOString()
+        })
+        .eq('id', operation.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Enviar notificação Telegram
+      await supabase.functions.invoke('send-telegram-notification', {
+        body: {
+          type: 'deposit',
+          amount: operation.amount,
+          userName: profile?.name || 'N/A',
+          ppokerId: profile?.pppoker_id || 'N/A',
+          status: 'confirmed'
+        }
+      });
+
+      toast({
+        title: "Sucesso",
+        description: "Pagamento confirmado manualmente e notificação enviada",
+      });
+
+      // Atualizar resultado
+      setResult(prev => ({
+        ...prev,
+        manualConfirmation: {
+          success: true,
+          message: 'Operação confirmada manualmente'
+        }
+      }));
+
+    } catch (error) {
+      console.error('Erro ao confirmar manualmente:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao confirmar operação manualmente",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <Card className="mt-4">
       <CardHeader>
@@ -125,6 +216,15 @@ const PaymentStatusChecker = () => {
           className="w-full"
         >
           {isChecking ? 'Verificando...' : 'Verificar Status'}
+        </Button>
+
+        <Button 
+          onClick={manuallyConfirmPayment}
+          disabled={isChecking}
+          className="w-full bg-orange-600 hover:bg-orange-700"
+          variant="secondary"
+        >
+          Confirmar Manualmente
         </Button>
 
         {result && (
