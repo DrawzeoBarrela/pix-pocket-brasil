@@ -22,10 +22,12 @@ serve(async (req) => {
 
     const mercadoPagoAccessToken = Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN')
     if (!mercadoPagoAccessToken) {
+      console.error('MERCADO_PAGO_ACCESS_TOKEN não encontrado')
       throw new Error('Token do Mercado Pago não configurado')
     }
 
     console.log('Creating PIX payment for amount:', amount)
+    console.log('Using token:', mercadoPagoAccessToken.substring(0, 20) + '...')
 
     // Gerar um idempotency key único para esta operação
     const idempotencyKey = `${operationId}-${Date.now()}`
@@ -36,9 +38,14 @@ serve(async (req) => {
       description: description || `Depósito - Operação ${operationId}`,
       payment_method_id: 'pix',
       payer: {
-        email: 'user@example.com', // Você pode pegar do usuário autenticado
-      }
+        email: 'user@example.com',
+        first_name: 'Usuario',
+        last_name: 'Sistema'
+      },
+      notification_url: `https://zwsaxgedqgmozetdqzyc.supabase.co/functions/v1/handle-mercado-pago-webhook`
     }
+
+    console.log('Payment data:', JSON.stringify(paymentData, null, 2))
 
     const mercadoPagoResponse = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
@@ -50,14 +57,17 @@ serve(async (req) => {
       body: JSON.stringify(paymentData)
     })
 
+    const responseText = await mercadoPagoResponse.text()
+    console.log('Mercado Pago response status:', mercadoPagoResponse.status)
+    console.log('Mercado Pago response:', responseText)
+
     if (!mercadoPagoResponse.ok) {
-      const errorData = await mercadoPagoResponse.text()
-      console.error('Mercado Pago error:', errorData)
-      throw new Error(`Erro ao criar pagamento no Mercado Pago: ${mercadoPagoResponse.status}`)
+      console.error('Mercado Pago error:', responseText)
+      throw new Error(`Erro ao criar pagamento no Mercado Pago: ${mercadoPagoResponse.status} - ${responseText}`)
     }
 
-    const paymentResult = await mercadoPagoResponse.json()
-    console.log('Payment created:', paymentResult.id)
+    const paymentResult = JSON.parse(responseText)
+    console.log('Payment created successfully:', paymentResult.id)
 
     // Extrair informações do PIX
     const pixData = paymentResult.point_of_interaction?.transaction_data
@@ -66,6 +76,11 @@ serve(async (req) => {
       console.error('Payment result:', JSON.stringify(paymentResult, null, 2))
       throw new Error('Dados do PIX não encontrados na resposta')
     }
+
+    console.log('PIX data found:', {
+      qr_code_exists: !!pixData.qr_code,
+      qr_code_base64_exists: !!pixData.qr_code_base64
+    })
 
     return new Response(
       JSON.stringify({
