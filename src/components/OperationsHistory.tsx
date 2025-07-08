@@ -7,6 +7,7 @@ import { ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { formatDateTimeBrasilia } from '@/lib/utils';
 
 interface Operation {
   id: string;
@@ -119,8 +120,7 @@ const OperationsHistory = () => {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {new Date(operation.created_at).toLocaleDateString('pt-BR')} às{' '}
-                    {new Date(operation.created_at).toLocaleTimeString('pt-BR')}
+                    {formatDateTimeBrasilia(operation.created_at)}
                   </TableCell>
                 </TableRow>
               ))}

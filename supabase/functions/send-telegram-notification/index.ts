@@ -31,6 +31,17 @@ serve(async (req) => {
       throw new Error('Telegram Bot token não configurado')
     }
 
+    // Format the current time in Brasília timezone
+    const brasiliaTime = new Date().toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })
+
     // Format the message based on operation type
     let message = ''
     if (type === 'deposit') {
@@ -38,14 +49,16 @@ serve(async (req) => {
                 `💰 Valor: R$ ${amount.toFixed(2)}\n` +
                 `👤 Usuário: ${userName}\n` +
                 `🎮 PPPoker ID: ${ppokerId}\n` +
-                `📊 Status: ${status === 'pending' ? 'Pendente' : 'Confirmado'}`
+                `📊 Status: ${status === 'pending' ? 'Pendente' : 'Confirmado'}\n` +
+                `🕒 Horário: ${brasiliaTime} (Brasília)`
     } else {
       message = `🔴 *NOVA SOLICITAÇÃO DE SAQUE*\n\n` +
                 `💰 Valor: R$ ${amount.toFixed(2)}\n` +
                 `👤 Usuário: ${userName}\n` +
                 `🎮 PPPoker ID: ${ppokerId}\n` +
                 `🔑 Chave PIX: ${pixKey || 'Não informada'}\n` +
-                `📊 Status: ${status === 'pending' ? 'Pendente' : 'Confirmado'}`
+                `📊 Status: ${status === 'pending' ? 'Pendente' : 'Confirmado'}\n` +
+                `🕒 Horário: ${brasiliaTime} (Brasília)`
     }
 
     console.log('Sending Telegram notification:', { type, amount, userName })

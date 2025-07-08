@@ -12,6 +12,7 @@ import { DarkModeToggle } from '@/components/DarkModeToggle';
 import AdminOperationsHistory from '@/components/AdminOperationsHistory';
 import AdminObservationField from '@/components/AdminObservationField';
 import AdminFinancialSummary from '@/components/AdminFinancialSummary';
+import { formatDateBrasilia } from '@/lib/utils';
 
 interface Operation {
   id: string;
@@ -195,7 +196,7 @@ const Admin = () => {
             {operation.type === 'withdrawal' && operation.pix_key && (
               <p className="text-sm text-gray-600">Chave PIX: {operation.pix_key}</p>
             )}
-            <p className="text-sm text-gray-500">Data: {new Date(operation.created_at).toLocaleDateString('pt-BR')}</p>
+            <p className="text-sm text-gray-500">Data: {formatDateBrasilia(operation.created_at)}</p>
           </div>
           <div className="text-right">
             <p className="text-2xl font-bold text-blue-600">
