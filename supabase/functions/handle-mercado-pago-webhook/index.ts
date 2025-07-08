@@ -162,10 +162,10 @@ serve(async (req) => {
     )
 
     console.log('🔍 Buscando operação no banco de dados...')
-    // Buscar a operação no banco pelo payment_id do Mercado Pago (sem inner join)
+    // Buscar a operação no banco pelo payment_id do Mercado Pago com dados otimizados
     const { data: operation, error: operationError } = await supabase
       .from('operations')
-      .select('*')
+      .select('id, user_id, amount, status, type, mercado_pago_payment_id')
       .eq('mercado_pago_payment_id', paymentId)
       .eq('type', 'deposit')
       .single()
@@ -220,23 +220,6 @@ serve(async (req) => {
 
     console.log('✅ Operação encontrada:', operation.id)
     console.log('👤 User ID:', operation.user_id)
-    
-    // Buscar dados do perfil do usuário separadamente
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('name, pppoker_id')
-      .eq('id', operation.user_id)
-      .single()
-
-    if (profileError || !profile) {
-      console.error('❌ Erro ao buscar perfil do usuário:', profileError)
-      
-      // Continuar mesmo sem o perfil, usando dados básicos
-      console.log('⚠️ Continuando sem dados do perfil')
-    } else {
-      console.log('👤 Usuário:', profile.name)
-      console.log('🎮 PPPoker ID:', profile.pppoker_id)
-    }
 
     // Verificar se a operação já foi confirmada (evitar duplicatas)
     if (operation.status === 'confirmed') {
@@ -264,71 +247,50 @@ serve(async (req) => {
 
     console.log('✅ Status da operação atualizado para confirmado')
 
-    // Enviar notificação do Telegram
-    const telegramBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
-    
-    if (!telegramBotToken) {
-      console.error('❌ Token do Telegram não configurado')
-      throw new Error('Token do Telegram não configurado')
+    // Enviar notificação em background para não bloquear resposta do webhook
+    const notificationTask = async () => {
+      try {
+        console.log('🚀 Iniciando notificação em background...')
+        
+        const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        
+        const notificationPayload = {
+          operationId: operation.id,
+          paymentId: paymentId,
+          type: 'deposit',
+          amount: operation.amount,
+          status: 'confirmed'
+        }
+
+        const response = await fetch(`${supabaseUrl}/functions/v1/send-notification-async`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseKey}`
+          },
+          body: JSON.stringify(notificationPayload)
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('❌ Erro ao chamar função de notificação:', errorText)
+        } else {
+          console.log('✅ Notificação enviada em background com sucesso')
+        }
+      } catch (error) {
+        console.error('❌ Erro no background task de notificação:', error)
+      }
     }
 
-    console.log('📱 Enviando notificação do Telegram...')
-    console.log('🔑 Token verificado:', telegramBotToken ? 'Token existe (***' + telegramBotToken.slice(-4) + ')' : 'Token não encontrado')
-    
-    try {
-      const userName = profile?.name || 'Usuário'
-      const ppokerId = profile?.pppoker_id || 'N/A'
-      
-      const message = `🟢 *DEPÓSITO CONFIRMADO*\n\n` +
-                     `💰 Valor: R$ ${operation.amount.toFixed(2)}\n` +
-                     `👤 Usuário: ${userName}\n` +
-                     `🎮 PPPoker ID: ${ppokerId}\n` +
-                     `📊 Status: Confirmado ✅\n` +
-                     `🕒 Confirmado em: ${new Date().toLocaleString('pt-BR')}\n` +
-                     `🆔 Payment ID: ${paymentId}`
-
-      console.log('📝 Mensagem do Telegram:', message)
-
-      const telegramUrl = `https://api.telegram.org/bot${telegramBotToken}/sendMessage`
-      
-      const telegramPayload = {
-        chat_id: '@Panambipokerfichas',
-        text: message,
-        parse_mode: 'Markdown'
-      }
-
-      console.log('📤 Enviando para Telegram:', telegramUrl)
-      console.log('📦 Payload:', JSON.stringify(telegramPayload, null, 2))
-
-      const telegramResponse = await fetch(telegramUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(telegramPayload)
+    // Executar notificação em background sem aguardar
+    if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+      EdgeRuntime.waitUntil(notificationTask())
+    } else {
+      // Fallback para ambientes que não suportam EdgeRuntime.waitUntil
+      notificationTask().catch(error => {
+        console.error('❌ Erro no fallback de notificação:', error)
       })
-
-      const telegramResult = await telegramResponse.json()
-      console.log('📱 Resposta do Telegram:', JSON.stringify(telegramResult, null, 2))
-      console.log('📊 Status HTTP Telegram:', telegramResponse.status)
-      console.log('📊 OK?', telegramResponse.ok)
-
-      if (!telegramResponse.ok) {
-        console.error('❌ Erro na API do Telegram:', telegramResult)
-        console.error('❌ Status HTTP:', telegramResponse.status)
-        console.error('❌ Headers Telegram:', Object.fromEntries(telegramResponse.headers.entries()))
-        throw new Error(`Erro do Telegram: ${telegramResult.description || 'Erro desconhecido'}`)
-      }
-
-      console.log('✅ Notificação do Telegram enviada com sucesso!')
-      
-    } catch (telegramError) {
-      console.error('❌ Erro ao enviar notificação do Telegram:', telegramError)
-      console.error('❌ Stack trace Telegram:', telegramError.stack)
-      console.error('❌ Tipo do erro:', typeof telegramError)
-      console.error('❌ Nome do erro:', telegramError.name)
-      
-      // Não vamos falhar o webhook por causa da notificação, mas vamos logar o erro
     }
 
     console.log('🎉 Processamento do webhook concluído com sucesso!')
@@ -339,7 +301,7 @@ serve(async (req) => {
         message: 'Pagamento processado e notificação enviada',
         operation_id: operation.id,
         payment_id: paymentId,
-        user_name: profile?.name || 'Usuário',
+        notification_started: true,
         amount: operation.amount
       }),
       {

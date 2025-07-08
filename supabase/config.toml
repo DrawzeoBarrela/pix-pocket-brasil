@@ -3,3 +3,6 @@ project_id = "zwsaxgedqgmozetdqzyc"
 
 [functions.handle-mercado-pago-webhook]
 verify_jwt = false
+
+[functions.send-notification-async]
+verify_jwt = false
