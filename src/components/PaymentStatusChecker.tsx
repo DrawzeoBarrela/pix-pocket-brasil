@@ -194,6 +194,54 @@ const PaymentStatusChecker = () => {
     }
   };
 
+  const testTelegramNotification = async () => {
+    try {
+      setIsChecking(true);
+      
+      // Teste direto da notificação Telegram
+      const { data, error } = await supabase.functions.invoke('test-telegram-notification', {
+        body: {
+          type: 'deposit',
+          amount: 50.00,
+          userName: 'Teste Admin',
+          ppokerId: '12345',
+          status: 'confirmed'
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setResult({
+        status: 'telegram_test',
+        message: 'Teste do Telegram executado',
+        telegramTest: data
+      });
+
+      toast({
+        title: "Teste executado",
+        description: "Verifique o resultado abaixo e o canal do Telegram",
+      });
+
+    } catch (error) {
+      console.error('Erro no teste Telegram:', error);
+      setResult({
+        status: 'telegram_error',
+        message: 'Erro no teste do Telegram',
+        error: error.message
+      });
+      
+      toast({
+        title: "Erro",
+        description: "Erro ao testar Telegram: " + error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
   return (
     <Card className="mt-4">
       <CardHeader>
@@ -225,6 +273,15 @@ const PaymentStatusChecker = () => {
           variant="secondary"
         >
           Confirmar Manualmente
+        </Button>
+
+        <Button 
+          onClick={testTelegramNotification}
+          disabled={isChecking}
+          className="w-full bg-blue-600 hover:bg-blue-700"
+          variant="secondary"
+        >
+          🔔 Testar Telegram
         </Button>
 
         {result && (

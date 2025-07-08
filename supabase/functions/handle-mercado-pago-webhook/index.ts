@@ -273,6 +273,7 @@ serve(async (req) => {
     }
 
     console.log('📱 Enviando notificação do Telegram...')
+    console.log('🔑 Token verificado:', telegramBotToken ? 'Token existe (***' + telegramBotToken.slice(-4) + ')' : 'Token não encontrado')
     
     try {
       const userName = profile?.name || 'Usuário'
@@ -309,9 +310,13 @@ serve(async (req) => {
 
       const telegramResult = await telegramResponse.json()
       console.log('📱 Resposta do Telegram:', JSON.stringify(telegramResult, null, 2))
+      console.log('📊 Status HTTP Telegram:', telegramResponse.status)
+      console.log('📊 OK?', telegramResponse.ok)
 
       if (!telegramResponse.ok) {
         console.error('❌ Erro na API do Telegram:', telegramResult)
+        console.error('❌ Status HTTP:', telegramResponse.status)
+        console.error('❌ Headers Telegram:', Object.fromEntries(telegramResponse.headers.entries()))
         throw new Error(`Erro do Telegram: ${telegramResult.description || 'Erro desconhecido'}`)
       }
 
@@ -319,6 +324,10 @@ serve(async (req) => {
       
     } catch (telegramError) {
       console.error('❌ Erro ao enviar notificação do Telegram:', telegramError)
+      console.error('❌ Stack trace Telegram:', telegramError.stack)
+      console.error('❌ Tipo do erro:', typeof telegramError)
+      console.error('❌ Nome do erro:', telegramError.name)
+      
       // Não vamos falhar o webhook por causa da notificação, mas vamos logar o erro
     }
 
