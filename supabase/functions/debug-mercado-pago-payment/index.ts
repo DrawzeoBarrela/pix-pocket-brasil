@@ -10,13 +10,27 @@ interface DebugRequest {
 }
 
 serve(async (req) => {
+  console.log('=== DEBUG FUNCTION CALLED ===')
+  console.log('Method:', req.method)
+  console.log('Headers:', Object.fromEntries(req.headers.entries()))
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    const { paymentId }: DebugRequest = await req.json()
+    const requestBody = await req.text()
+    console.log('Raw request body:', requestBody)
     
+    let parsedBody: DebugRequest
+    try {
+      parsedBody = JSON.parse(requestBody)
+    } catch (parseError) {
+      console.error('❌ Erro ao fazer parse do JSON:', parseError)
+      throw new Error(`Erro no parse do JSON: ${parseError.message}`)
+    }
+    
+    const { paymentId } = parsedBody
     console.log('🔍 Debugando payment ID:', paymentId)
     
     const mercadoPagoAccessToken = Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN')

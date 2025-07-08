@@ -267,40 +267,56 @@ const PaymentStatusChecker = () => {
     }
 
     setIsChecking(true);
+    console.log('🔍 Iniciando debug para payment ID:', paymentId);
 
     try {
+      console.log('🚀 Chamando função debug-mercado-pago-payment...');
+      
       const { data, error } = await supabase.functions.invoke('debug-mercado-pago-payment', {
         body: {
-          paymentId: paymentId
+          paymentId: paymentId.trim()
         }
       });
 
+      console.log('📊 Resposta da função debug:', { data, error });
+
       if (error) {
-        throw error;
+        console.error('❌ Erro da função:', error);
+        throw new Error(`Erro da função: ${error.message || JSON.stringify(error)}`);
+      }
+
+      if (!data) {
+        console.warn('⚠️ Função retornou dados vazios');
+        throw new Error('Função retornou dados vazios');
       }
 
       setResult({
         status: 'debug_mercado_pago',
-        message: 'Debug do Mercado Pago executado',
-        debugResults: data
+        message: 'Debug do Mercado Pago executado com sucesso',
+        debugResults: data,
+        timestamp: new Date().toISOString()
       });
 
       toast({
         title: "Debug executado",
-        description: "Verifique os resultados abaixo",
+        description: `Verificação concluída para payment ID ${paymentId}`,
       });
 
     } catch (error) {
-      console.error('Erro no debug Mercado Pago:', error);
+      console.error('💥 Erro completo no debug:', error);
+      const errorMessage = error.message || 'Erro desconhecido';
+      
       setResult({
         status: 'debug_error',
         message: 'Erro no debug do Mercado Pago',
-        error: error.message
+        error: errorMessage,
+        timestamp: new Date().toISOString(),
+        paymentId: paymentId
       });
       
       toast({
-        title: "Erro",
-        description: "Erro ao debugar Mercado Pago: " + error.message,
+        title: "Erro no Debug",
+        description: `Falha ao debugar: ${errorMessage}`,
         variant: "destructive"
       });
     } finally {
