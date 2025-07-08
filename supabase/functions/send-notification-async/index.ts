@@ -30,17 +30,10 @@ serve(async (req) => {
 
     console.log('📱 Enviando notificação assíncrona para operação:', operationId)
 
-    // Buscar dados da operação com perfil em uma única query (JOIN otimizado)
+    // Buscar dados da operação primeiro
     const { data: operationData, error: queryError } = await supabase
       .from('operations')
-      .select(`
-        id,
-        amount,
-        status,
-        type,
-        mercado_pago_payment_id,
-        profiles!inner(name, pppoker_id)
-      `)
+      .select('id, amount, status, type, mercado_pago_payment_id, user_id')
       .eq('id', operationId)
       .single()
 
@@ -49,9 +42,20 @@ serve(async (req) => {
       throw new Error('Operação não encontrada')
     }
 
-    const profile = operationData.profiles as any
-    const userName = profile?.name || 'Usuário'
-    const ppokerId = profile?.pppoker_id || 'N/A'
+    // Buscar dados do perfil do usuário
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('name, pppoker_id')
+      .eq('id', operationData.user_id)
+      .single()
+
+    if (profileError || !profileData) {
+      console.error('❌ Erro ao buscar dados do perfil:', profileError)
+      throw new Error('Perfil do usuário não encontrado')
+    }
+
+    const userName = profileData.name || 'Usuário'
+    const ppokerId = profileData.pppoker_id || 'N/A'
 
     // Preparar mensagem do Telegram
     const brasiliaTime = new Date().toLocaleString('pt-BR', {
