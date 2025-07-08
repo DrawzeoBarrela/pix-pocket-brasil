@@ -288,6 +288,56 @@ export const usePaymentOperations = (): PaymentOperationHookReturn => {
         timestamp: new Date().toISOString()
       });
 
+      // Se o pagamento estiver aprovado no Mercado Pago, simular o webhook automaticamente
+      if (data?.paymentStatus === 'approved' && data?.operationFound) {
+        console.log('🎯 Pagamento aprovado detectado, simulando webhook...');
+        
+        try {
+          const webhookResponse = await fetch(
+            'https://zwsaxgedqgmozetdqzyc.supabase.co/functions/v1/handle-mercado-pago-webhook',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                type: 'payment',
+                action: 'payment.updated',
+                data: { id: paymentId }
+              })
+            }
+          );
+
+          const webhookResult = await webhookResponse.json();
+          console.log('🚀 Webhook simulado:', webhookResult);
+          
+          if (webhookResponse.ok && webhookResult.success) {
+            toast({
+              title: "Sucesso!",
+              description: "Pagamento confirmado automaticamente e notificação enviada",
+            });
+            
+            setResult(prev => ({
+              ...prev!,
+              webhook: {
+                status: webhookResponse.status,
+                result: webhookResult,
+                auto_triggered: true
+              }
+            }));
+          } else {
+            throw new Error(`Erro no webhook: ${webhookResult.error || 'Falha na resposta'}`);
+          }
+        } catch (webhookError) {
+          console.error('❌ Erro ao simular webhook:', webhookError);
+          toast({
+            title: "Pagamento aprovado",
+            description: "Mas houve erro ao processar automaticamente. Use 'Confirmar Manualmente'",
+            variant: "default"
+          });
+        }
+      }
+
       toast({
         title: "Debug executado",
         description: `Verificação concluída para payment ID ${paymentId}`,
