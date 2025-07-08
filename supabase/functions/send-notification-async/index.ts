@@ -117,9 +117,12 @@ serve(async (req) => {
 
     let retryCount = 0
     const maxRetries = 3
+    let lastError = null
 
     while (retryCount < maxRetries) {
       try {
+        console.log(`📞 Tentativa ${retryCount + 1}/${maxRetries} de envio para Telegram`)
+        
         const telegramResponse = await fetch(telegramUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -127,23 +130,29 @@ serve(async (req) => {
         })
 
         const telegramResult = await telegramResponse.json()
+        console.log(`📋 Resposta do Telegram (tentativa ${retryCount + 1}):`, telegramResult)
 
-        if (telegramResponse.ok) {
-          console.log('✅ Notificação enviada com sucesso:', telegramResult.message_id)
+        if (telegramResponse.ok && telegramResult.ok) {
+          console.log(`✅ Notificação enviada com sucesso na tentativa ${retryCount + 1}:`, telegramResult.result?.message_id)
           break
         } else {
-          throw new Error(`Erro do Telegram: ${telegramResult.description}`)
+          const errorMsg = telegramResult.description || `HTTP ${telegramResponse.status}`
+          throw new Error(`Erro do Telegram: ${errorMsg}`)
         }
       } catch (error) {
         retryCount++
+        lastError = error
         console.error(`❌ Tentativa ${retryCount} falhou:`, error.message)
         
         if (retryCount >= maxRetries) {
-          throw error
+          console.error('❌ Todas as tentativas falharam, erro final:', lastError.message)
+          throw lastError
         }
         
         // Aguardar antes de tentar novamente (exponential backoff)
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000))
+        const waitTime = Math.pow(2, retryCount) * 1000
+        console.log(`⏳ Aguardando ${waitTime}ms antes da próxima tentativa...`)
+        await new Promise(resolve => setTimeout(resolve, waitTime))
       }
     }
 

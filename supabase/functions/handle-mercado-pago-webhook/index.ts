@@ -8,16 +8,17 @@ const corsHeaders = {
 }
 
 interface MercadoPagoWebhookData {
-  id: number
-  live_mode: boolean
-  type: string
-  date_created: string
-  application_id: number
-  user_id: number
-  version: number
-  api_version: string
-  action: string
-  data: {
+  id?: number
+  live_mode?: boolean
+  type?: string
+  topic?: string // Alternative to type
+  date_created?: string
+  application_id?: number
+  user_id?: number
+  version?: number
+  api_version?: string
+  action?: string
+  data?: {
     id: string
   }
 }
@@ -40,14 +41,19 @@ serve(async (req) => {
     console.log('Query Parameters:', queryParams)
 
     let webhookData: MercadoPagoWebhookData
+    let paymentId: string
     
-    // Try to get data from query parameters first (for Mercado Pago test)
-    if (queryParams['data.id'] && queryParams['type']) {
-      console.log('📥 Dados recebidos via query parameters (teste do Mercado Pago)')
+    // Try multiple methods to extract webhook data
+    console.log('🔍 Analisando dados do webhook...')
+    
+    // Method 1: Query parameters (common in Mercado Pago notifications)
+    if (queryParams['data.id'] || queryParams['id']) {
+      console.log('📥 Dados detectados via query parameters')
+      paymentId = queryParams['data.id'] || queryParams['id']
       webhookData = {
         id: parseInt(queryParams.id) || 0,
         live_mode: queryParams.live_mode === 'true',
-        type: queryParams.type,
+        type: queryParams.type || queryParams.topic || 'payment',
         date_created: queryParams.date_created || new Date().toISOString(),
         application_id: parseInt(queryParams.application_id) || 0,
         user_id: parseInt(queryParams.user_id) || 0,
@@ -55,36 +61,54 @@ serve(async (req) => {
         api_version: queryParams.api_version || 'v1',
         action: queryParams.action || 'payment.updated',
         data: {
-          id: queryParams['data.id']
+          id: paymentId
         }
       }
+      console.log('✅ Payment ID extraído dos query params:', paymentId)
     } else {
-      // Try to get data from JSON body (for real webhook)
-      console.log('📥 Tentando obter dados via JSON body (webhook real)')
+      // Method 2: JSON body (alternative webhook format)
+      console.log('📥 Tentando obter dados via JSON body')
       try {
-        webhookData = await req.json()
+        const bodyData = await req.json()
+        console.log('📋 Dados do JSON body:', JSON.stringify(bodyData, null, 2))
+        
+        webhookData = bodyData
+        // Extract payment ID from various possible locations
+        paymentId = bodyData?.data?.id || bodyData?.id || bodyData?.payment_id
+        
+        if (!paymentId) {
+          console.error('❌ Payment ID não encontrado no JSON body')
+          throw new Error('Payment ID não encontrado nos dados do webhook')
+        }
+        
+        console.log('✅ Payment ID extraído do JSON body:', paymentId)
+        
+        // Ensure we have the data structure we need
+        if (!webhookData.data) {
+          webhookData.data = { id: paymentId }
+        }
+        
       } catch (jsonError) {
         console.error('❌ Erro ao fazer parse do JSON:', jsonError)
-        // If both query params and JSON parsing fail, return error
-        if (!queryParams['data.id']) {
-          throw new Error('Dados não encontrados nem em query parameters nem em JSON body')
-        }
+        console.error('❌ Nenhum método de extração funcionou')
+        throw new Error('Dados do webhook inválidos ou não encontrados')
       }
     }
 
-    console.log('=== DADOS DO WEBHOOK ===')
+    console.log('=== DADOS DO WEBHOOK PROCESSADOS ===')
     console.log(JSON.stringify(webhookData, null, 2))
+    console.log('🆔 Payment ID final:', paymentId)
 
-    // Verificar se é uma notificação de pagamento
-    if (webhookData.type !== 'payment') {
-      console.log('❌ Webhook ignorado - não é notificação de pagamento, tipo:', webhookData.type)
-      return new Response(JSON.stringify({ status: 'ignored', reason: 'not_payment' }), {
+    // Verificar se é uma notificação de pagamento (aceitar 'payment' ou 'topic' payment)
+    const webhookType = webhookData.type || webhookData.topic
+    if (webhookType !== 'payment') {
+      console.log('❌ Webhook ignorado - não é notificação de pagamento, tipo:', webhookType)
+      return new Response(JSON.stringify({ status: 'ignored', reason: 'not_payment', type: webhookType }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       })
     }
 
-    const paymentId = webhookData.data.id
     console.log('💰 Processando pagamento ID:', paymentId)
 
     // Se for apenas um teste do Mercado Pago (sem payment ID real), retornar sucesso
@@ -263,30 +287,48 @@ serve(async (req) => {
 
     console.log('✅ Status da operação atualizado para confirmado')
 
-    // Enviar notificação usando o cliente Supabase
+    // Enviar notificação usando o cliente Supabase com retry
     console.log('🚀 Enviando notificação...')
-    try {
-      const notificationPayload = {
-        operationId: operation.id,
-        paymentId: paymentId,
-        type: 'deposit',
-        amount: operation.amount,
-        status: 'confirmed'
+    let notificationSuccess = false
+    let notificationResult = null
+    
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`📞 Tentativa ${attempt} de envio da notificação`)
+        
+        const notificationPayload = {
+          operationId: operation.id,
+          paymentId: paymentId,
+          type: 'deposit',
+          amount: operation.amount,
+          status: 'confirmed'
+        }
+
+        const { data, error } = await supabase.functions.invoke('send-notification-async', {
+          body: notificationPayload
+        })
+
+        if (error) {
+          console.error(`❌ Erro na tentativa ${attempt}:`, error)
+          if (attempt === 3) throw error
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
+          continue
+        }
+
+        console.log(`✅ Notificação enviada com sucesso na tentativa ${attempt}:`, data)
+        notificationSuccess = true
+        notificationResult = data
+        break
+
+      } catch (notificationError) {
+        console.error(`❌ Falha na tentativa ${attempt}:`, notificationError)
+        if (attempt === 3) {
+          console.error('❌ Todas as tentativas de notificação falharam')
+          // Log the error but don't fail the webhook - payment is confirmed
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
+        }
       }
-
-      const { data: notificationResult, error: notificationError } = await supabase.functions.invoke('send-notification-async', {
-        body: notificationPayload
-      })
-
-      if (notificationError) {
-        console.error('❌ Erro ao enviar notificação:', notificationError)
-        throw notificationError
-      }
-
-      console.log('✅ Notificação enviada com sucesso:', notificationResult)
-    } catch (notificationError) {
-      console.error('❌ Falha crítica na notificação:', notificationError)
-      // Não falhar o webhook por causa da notificação, mas logar o erro
     }
 
     console.log('🎉 Processamento do webhook concluído com sucesso!')
@@ -297,8 +339,10 @@ serve(async (req) => {
         message: 'Pagamento processado e notificação enviada',
         operation_id: operation.id,
         payment_id: paymentId,
-        notification_started: true,
-        amount: operation.amount
+        notification_success: notificationSuccess,
+        notification_result: notificationResult,
+        amount: operation.amount,
+        processed_at: new Date().toISOString()
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
