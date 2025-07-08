@@ -6,3 +6,6 @@ verify_jwt = false
 
 [functions.send-notification-async]
 verify_jwt = false
+
+[functions.debug-mercado-pago-payment]
+verify_jwt = false

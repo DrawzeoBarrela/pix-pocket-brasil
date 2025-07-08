@@ -121,6 +121,8 @@ const PaymentStatusChecker = () => {
       return;
     }
 
+    setIsChecking(true);
+
     try {
       // Buscar operação no banco
       const { data: operation, error } = await supabase
@@ -159,28 +161,38 @@ const PaymentStatusChecker = () => {
         throw updateError;
       }
 
-      // Enviar notificação Telegram
-      await supabase.functions.invoke('send-telegram-notification', {
+      // Enviar notificação via função assíncrona
+      const { data: notificationResult, error: notificationError } = await supabase.functions.invoke('send-notification-async', {
         body: {
+          operationId: operation.id,
+          paymentId: paymentId,
           type: 'deposit',
           amount: operation.amount,
-          userName: profile?.name || 'N/A',
-          ppokerId: profile?.pppoker_id || 'N/A',
           status: 'confirmed'
         }
       });
 
-      toast({
-        title: "Sucesso",
-        description: "Pagamento confirmado manualmente e notificação enviada",
-      });
+      if (notificationError) {
+        console.error('Erro na notificação:', notificationError);
+        toast({
+          title: "Aviso",
+          description: "Pagamento confirmado, mas houve erro na notificação",
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "Sucesso",
+          description: "Pagamento confirmado manualmente e notificação enviada",
+        });
+      }
 
       // Atualizar resultado
       setResult(prev => ({
         ...prev,
         manualConfirmation: {
           success: true,
-          message: 'Operação confirmada manualmente'
+          message: 'Operação confirmada manualmente',
+          notification: notificationResult
         }
       }));
 
@@ -191,6 +203,8 @@ const PaymentStatusChecker = () => {
         description: "Erro ao confirmar operação manualmente",
         variant: "destructive"
       });
+    } finally {
+      setIsChecking(false);
     }
   };
 
@@ -242,6 +256,58 @@ const PaymentStatusChecker = () => {
     }
   };
 
+  const debugMercadoPago = async () => {
+    if (!paymentId.trim()) {
+      toast({
+        title: "Erro",
+        description: "Digite o ID do pagamento do Mercado Pago",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsChecking(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('debug-mercado-pago-payment', {
+        body: {
+          paymentId: paymentId
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setResult({
+        status: 'debug_mercado_pago',
+        message: 'Debug do Mercado Pago executado',
+        debugResults: data
+      });
+
+      toast({
+        title: "Debug executado",
+        description: "Verifique os resultados abaixo",
+      });
+
+    } catch (error) {
+      console.error('Erro no debug Mercado Pago:', error);
+      setResult({
+        status: 'debug_error',
+        message: 'Erro no debug do Mercado Pago',
+        error: error.message
+      });
+      
+      toast({
+        title: "Erro",
+        description: "Erro ao debugar Mercado Pago: " + error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
   return (
     <Card className="mt-4">
       <CardHeader>
@@ -282,6 +348,15 @@ const PaymentStatusChecker = () => {
           variant="secondary"
         >
           🔔 Testar Telegram
+        </Button>
+
+        <Button 
+          onClick={debugMercadoPago}
+          disabled={isChecking}
+          className="w-full bg-purple-600 hover:bg-purple-700"
+          variant="secondary"
+        >
+          🔍 Debug Mercado Pago
         </Button>
 
         {result && (

@@ -127,17 +127,33 @@ serve(async (req) => {
     }
 
     console.log('🔍 Buscando detalhes do pagamento no Mercado Pago...')
+    console.log('💳 Payment ID sendo consultado:', paymentId)
+    console.log('🔑 Usando token que termina em:', mercadoPagoAccessToken.slice(-10))
+    
     const paymentResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
       headers: {
         'Authorization': `Bearer ${mercadoPagoAccessToken}`,
+        'Content-Type': 'application/json',
       },
     })
+
+    console.log('📊 Status da resposta da API:', paymentResponse.status)
+    console.log('📋 Headers da resposta:', Object.fromEntries(paymentResponse.headers.entries()))
 
     if (!paymentResponse.ok) {
       console.error('❌ Erro ao buscar pagamento:', paymentResponse.status, paymentResponse.statusText)
       const errorText = await paymentResponse.text()
-      console.error('Resposta do erro:', errorText)
-      throw new Error(`Erro ao buscar pagamento: ${paymentResponse.status}`)
+      console.error('📄 Response body completo:', errorText)
+      
+      // Tentar parsear como JSON para mais detalhes
+      try {
+        const errorJson = JSON.parse(errorText)
+        console.error('📋 Erro estruturado:', JSON.stringify(errorJson, null, 2))
+      } catch (e) {
+        console.error('❌ Erro não é JSON válido')
+      }
+      
+      throw new Error(`Erro ao buscar pagamento: ${paymentResponse.status} - ${errorText}`)
     }
 
     const paymentData = await paymentResponse.json()
