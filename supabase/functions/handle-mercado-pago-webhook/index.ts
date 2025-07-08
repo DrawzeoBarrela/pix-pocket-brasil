@@ -162,10 +162,10 @@ serve(async (req) => {
     )
 
     console.log('🔍 Buscando operação no banco de dados...')
-    // Buscar a operação no banco pelo payment_id do Mercado Pago
+    // Buscar a operação no banco pelo payment_id do Mercado Pago (sem inner join)
     const { data: operation, error: operationError } = await supabase
       .from('operations')
-      .select('*, profiles!inner(*)')
+      .select('*')
       .eq('mercado_pago_payment_id', paymentId)
       .eq('type', 'deposit')
       .single()
@@ -173,16 +173,26 @@ serve(async (req) => {
     if (operationError) {
       console.error('❌ Erro ao buscar operação:', operationError)
       
-      // Tentar buscar sem o inner join para debug
-      const { data: allOps, error: debugError } = await supabase
+      // Debug: buscar todas as operações recentes para análise
+      const { data: recentOps } = await supabase
         .from('operations')
-        .select('*')
-        .eq('mercado_pago_payment_id', paymentId)
+        .select('id, mercado_pago_payment_id, created_at, status')
+        .eq('type', 'deposit')
+        .order('created_at', { ascending: false })
+        .limit(10)
         
-      console.log('🔍 Debug - operações encontradas:', allOps)
-      console.log('🔍 Debug - erro:', debugError)
+      console.log('🔍 Debug - últimas 10 operações de depósito:', recentOps)
       
-      throw new Error(`Operação não encontrada: ${operationError.message}`)
+      // Retornar status 200 para não causar "falha na entrega" no Mercado Pago
+      return new Response(JSON.stringify({ 
+        status: 'error', 
+        message: 'Operação não encontrada', 
+        payment_id: paymentId,
+        debug: { error: operationError.message, recent_operations: recentOps }
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
     }
 
     if (!operation) {
@@ -191,22 +201,42 @@ serve(async (req) => {
       // Debug: buscar todas as operações recentes
       const { data: recentOps } = await supabase
         .from('operations')
-        .select('id, mercado_pago_payment_id, created_at')
+        .select('id, mercado_pago_payment_id, created_at, status')
         .eq('type', 'deposit')
         .order('created_at', { ascending: false })
         .limit(5)
         
       console.log('🔍 Últimas 5 operações de depósito:', recentOps)
       
-      return new Response(JSON.stringify({ status: 'operation_not_found', payment_id: paymentId }), {
+      return new Response(JSON.stringify({ 
+        status: 'operation_not_found', 
+        payment_id: paymentId,
+        recent_operations: recentOps 
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       })
     }
 
     console.log('✅ Operação encontrada:', operation.id)
-    console.log('👤 Usuário:', operation.profiles.name)
-    console.log('🎮 PPPoker ID:', operation.profiles.pppoker_id)
+    console.log('👤 User ID:', operation.user_id)
+    
+    // Buscar dados do perfil do usuário separadamente
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('name, pppoker_id')
+      .eq('id', operation.user_id)
+      .single()
+
+    if (profileError || !profile) {
+      console.error('❌ Erro ao buscar perfil do usuário:', profileError)
+      
+      // Continuar mesmo sem o perfil, usando dados básicos
+      console.log('⚠️ Continuando sem dados do perfil')
+    } else {
+      console.log('👤 Usuário:', profile.name)
+      console.log('🎮 PPPoker ID:', profile.pppoker_id)
+    }
 
     // Verificar se a operação já foi confirmada (evitar duplicatas)
     if (operation.status === 'confirmed') {
@@ -245,10 +275,13 @@ serve(async (req) => {
     console.log('📱 Enviando notificação do Telegram...')
     
     try {
+      const userName = profile?.name || 'Usuário'
+      const ppokerId = profile?.pppoker_id || 'N/A'
+      
       const message = `🟢 *DEPÓSITO CONFIRMADO*\n\n` +
                      `💰 Valor: R$ ${operation.amount.toFixed(2)}\n` +
-                     `👤 Usuário: ${operation.profiles.name}\n` +
-                     `🎮 PPPoker ID: ${operation.profiles.pppoker_id}\n` +
+                     `👤 Usuário: ${userName}\n` +
+                     `🎮 PPPoker ID: ${ppokerId}\n` +
                      `📊 Status: Confirmado ✅\n` +
                      `🕒 Confirmado em: ${new Date().toLocaleString('pt-BR')}\n` +
                      `🆔 Payment ID: ${paymentId}`
@@ -297,7 +330,7 @@ serve(async (req) => {
         message: 'Pagamento processado e notificação enviada',
         operation_id: operation.id,
         payment_id: paymentId,
-        user_name: operation.profiles.name,
+        user_name: profile?.name || 'Usuário',
         amount: operation.amount
       }),
       {
