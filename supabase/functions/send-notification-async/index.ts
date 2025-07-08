@@ -15,12 +15,28 @@ interface NotificationPayload {
 }
 
 serve(async (req) => {
+  console.log('=== NOTIFICATION FUNCTION CALLED ===')
+  console.log('Method:', req.method)
+  console.log('Headers:', Object.fromEntries(req.headers.entries()))
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    const { operationId, paymentId, type, amount, status }: NotificationPayload = await req.json()
+    const requestBody = await req.text()
+    console.log('Raw notification request body:', requestBody)
+    
+    let parsedBody: NotificationPayload
+    try {
+      parsedBody = JSON.parse(requestBody)
+    } catch (parseError) {
+      console.error('❌ Erro ao fazer parse do JSON da notificação:', parseError)
+      throw new Error(`Erro no parse do JSON: ${parseError.message}`)
+    }
+    
+    const { operationId, paymentId, type, amount, status } = parsedBody
+    console.log('📱 Processando notificação para:', { operationId, paymentId, type, amount, status })
 
     // Criar cliente Supabase
     const supabase = createClient(

@@ -256,6 +256,80 @@ const PaymentStatusChecker = () => {
     }
   };
 
+  const resendNotification = async () => {
+    if (!paymentId.trim()) {
+      toast({
+        title: "Erro",
+        description: "Digite o ID do pagamento do Mercado Pago",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsChecking(true);
+
+    try {
+      // Buscar operação no banco
+      const { data: operation, error } = await supabase
+        .from('operations')
+        .select('*')
+        .eq('mercado_pago_payment_id', paymentId)
+        .single();
+
+      if (error || !operation) {
+        toast({
+          title: "Erro",
+          description: "Operação não encontrada",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Enviar notificação via função assíncrona
+      const { data: notificationResult, error: notificationError } = await supabase.functions.invoke('send-notification-async', {
+        body: {
+          operationId: operation.id,
+          paymentId: paymentId,
+          type: 'deposit',
+          amount: operation.amount,
+          status: operation.status
+        }
+      });
+
+      if (notificationError) {
+        console.error('Erro na notificação:', notificationError);
+        toast({
+          title: "Erro",
+          description: "Erro ao reenviar notificação",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Sucesso",
+          description: "Notificação reenviada com sucesso",
+        });
+      }
+
+      // Atualizar resultado
+      setResult({
+        status: 'notification_resent',
+        message: 'Notificação reenviada',
+        notification: notificationResult,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('Erro ao reenviar notificação:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao reenviar notificação: " + error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
   const debugMercadoPago = async () => {
     if (!paymentId.trim()) {
       toast({
@@ -373,6 +447,15 @@ const PaymentStatusChecker = () => {
           variant="secondary"
         >
           🔍 Debug Mercado Pago
+        </Button>
+
+        <Button 
+          onClick={resendNotification}
+          disabled={isChecking}
+          className="w-full bg-green-600 hover:bg-green-700"
+          variant="secondary"
+        >
+          🔔 Reenviar Notificação
         </Button>
 
         {result && (

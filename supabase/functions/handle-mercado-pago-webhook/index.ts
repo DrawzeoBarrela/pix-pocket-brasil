@@ -263,50 +263,30 @@ serve(async (req) => {
 
     console.log('✅ Status da operação atualizado para confirmado')
 
-    // Enviar notificação em background para não bloquear resposta do webhook
-    const notificationTask = async () => {
-      try {
-        console.log('🚀 Iniciando notificação em background...')
-        
-        const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
-        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-        
-        const notificationPayload = {
-          operationId: operation.id,
-          paymentId: paymentId,
-          type: 'deposit',
-          amount: operation.amount,
-          status: 'confirmed'
-        }
-
-        const response = await fetch(`${supabaseUrl}/functions/v1/send-notification-async`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseKey}`
-          },
-          body: JSON.stringify(notificationPayload)
-        })
-
-        if (!response.ok) {
-          const errorText = await response.text()
-          console.error('❌ Erro ao chamar função de notificação:', errorText)
-        } else {
-          console.log('✅ Notificação enviada em background com sucesso')
-        }
-      } catch (error) {
-        console.error('❌ Erro no background task de notificação:', error)
+    // Enviar notificação usando o cliente Supabase
+    console.log('🚀 Enviando notificação...')
+    try {
+      const notificationPayload = {
+        operationId: operation.id,
+        paymentId: paymentId,
+        type: 'deposit',
+        amount: operation.amount,
+        status: 'confirmed'
       }
-    }
 
-    // Executar notificação em background sem aguardar
-    if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
-      EdgeRuntime.waitUntil(notificationTask())
-    } else {
-      // Fallback para ambientes que não suportam EdgeRuntime.waitUntil
-      notificationTask().catch(error => {
-        console.error('❌ Erro no fallback de notificação:', error)
+      const { data: notificationResult, error: notificationError } = await supabase.functions.invoke('send-notification-async', {
+        body: notificationPayload
       })
+
+      if (notificationError) {
+        console.error('❌ Erro ao enviar notificação:', notificationError)
+        throw notificationError
+      }
+
+      console.log('✅ Notificação enviada com sucesso:', notificationResult)
+    } catch (notificationError) {
+      console.error('❌ Falha crítica na notificação:', notificationError)
+      // Não falhar o webhook por causa da notificação, mas logar o erro
     }
 
     console.log('🎉 Processamento do webhook concluído com sucesso!')
