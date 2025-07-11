@@ -7,7 +7,6 @@ import { ArrowUpCircle, ArrowDownCircle, History, FileText, Edit } from 'lucide-
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import AdminObservationField from '@/components/AdminObservationField';
-import { formatDateTimeBrasilia } from '@/lib/utils';
 
 interface AdminOperation {
   id: string;
@@ -249,7 +248,8 @@ const AdminOperationsHistory = () => {
                       )}
                     </TableCell>
                     <TableCell>
-                      {formatDateTimeBrasilia(operation.created_at)}
+                      {new Date(operation.created_at).toLocaleDateString('pt-BR')} às{' '}
+                      {new Date(operation.created_at).toLocaleTimeString('pt-BR')}
                     </TableCell>
                   </TableRow>
                 ))}
