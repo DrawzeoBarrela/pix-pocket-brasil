@@ -50,11 +50,14 @@ serve(async (req) => {
 
     console.log('Sending Telegram notification:', { type, amount, userName })
 
-    // Send message to Telegram channel
+    // Send message to Telegram (try channel first, fallback to admin chat)
     const telegramUrl = `https://api.telegram.org/bot${telegramBotToken}/sendMessage`
     
+    // Try to get admin chat ID from environment, fallback to channel
+    const adminChatId = Deno.env.get('TELEGRAM_ADMIN_CHAT_ID') || '@Panambipokerfichas'
+    
     const telegramPayload = {
-      chat_id: '@Panambipokerfichas',
+      chat_id: adminChatId,
       text: message,
       parse_mode: 'Markdown'
     }
