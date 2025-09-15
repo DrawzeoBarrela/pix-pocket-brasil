@@ -12,6 +12,7 @@ import { DarkModeToggle } from '@/components/DarkModeToggle';
 import AdminOperationsHistory from '@/components/AdminOperationsHistory';
 import AdminObservationField from '@/components/AdminObservationField';
 import AdminFinancialSummary from '@/components/AdminFinancialSummary';
+import TelegramTestButton from '@/components/TelegramTestButton';
 
 interface Operation {
   id: string;
@@ -271,6 +272,7 @@ const Admin = () => {
             <p className="text-muted-foreground">Gerenciar solicitações de saque e depósito</p>
           </div>
           <div className="flex items-center gap-2">
+            <TelegramTestButton />
             <DarkModeToggle />
             <Button 
               onClick={signOut} 
